@@ -2,12 +2,14 @@ import React from 'react'
 import { useSnapshot } from 'valtio'
 
 import Icon from '@/components/Icon'
-import { videoProxy } from '../-state'
+import { appProxy } from '../-state'
 
 function Success() {
   const {
-    state: { sizeInBytes, compressedVideo, size: videoSize },
-  } = useSnapshot(videoProxy)
+    state: { videos },
+  } = useSnapshot(appProxy)
+  const video = videos.length > 0 ? videos[0] : null
+  const { sizeInBytes, compressedVideo, size: videoSize } = video ?? {}
 
   const sizeDiff: number = React.useMemo(
     () =>

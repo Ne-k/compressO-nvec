@@ -8,28 +8,33 @@ import Switch from '@/components/Switch'
 import Tooltip from '@/components/Tooltip'
 import { compressionPresets } from '@/types/compression'
 import { slideDownTransition } from '@/utils/animation'
-import { videoProxy } from '../-state'
+import { appProxy } from '../../-state'
 
 const presets = Object.keys(compressionPresets)
 
 function CompressionPreset() {
   const {
-    state: { isCompressing, isCompressionSuccessful, config },
-  } = useSnapshot(videoProxy)
+    state: { isCompressing, isProcessCompleted, videos },
+  } = useSnapshot(appProxy)
+  const video = videos.length > 0 ? videos[0] : null
+  const { config } = video ?? {}
+  const { presetName, shouldDisableCompression } = config ?? {}
 
-  const { presetName, shouldDisableCompression } = config
   return (
     <>
       <>
         <div className="flex items-center mb-4 my-2">
           <Switch
+            disabled={videos.length === 0}
             isSelected={!shouldDisableCompression}
             onValueChange={() => {
-              videoProxy.state.config.shouldDisableCompression =
-                !shouldDisableCompression
+              if (appProxy.state.videos.length) {
+                appProxy.state.videos[0].config.shouldDisableCompression =
+                  !shouldDisableCompression
+              }
             }}
             className="flex justify-center items-center"
-            isDisabled={isCompressing || isCompressionSuccessful}
+            isDisabled={isCompressing || isProcessCompleted}
           >
             <div className="flex justify-center items-center">
               <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm">
@@ -48,19 +53,22 @@ function CompressionPreset() {
                 label="Compression Preset:"
                 labelPlacement="outside"
                 className="block flex-shrink-0 rounded-2xl"
-                selectedKeys={[presetName]}
+                selectedKeys={[presetName!]}
                 onChange={(evt) => {
-                  const value = evt?.target
-                    ?.value as keyof typeof compressionPresets
-                  if (value?.length > 0) {
-                    videoProxy.state.config.presetName = value
+                  if (appProxy.state.videos.length) {
+                    const value = evt?.target
+                      ?.value as keyof typeof compressionPresets
+                    if (value?.length > 0) {
+                      appProxy.state.videos[0].config.presetName = value
+                    }
                   }
                 }}
                 selectionMode="single"
                 isDisabled={
+                  videos.length === 0 ||
                   shouldDisableCompression ||
                   isCompressing ||
-                  isCompressionSuccessful
+                  isProcessCompleted
                 }
                 classNames={{
                   label: '!text-gray-600 dark:!text-gray-400 text-xs',

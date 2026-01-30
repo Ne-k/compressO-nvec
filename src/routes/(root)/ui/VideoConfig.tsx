@@ -1,4 +1,3 @@
-import { SelectItem } from '@heroui/select'
 import { core } from '@tauri-apps/api'
 import { AnimatePresence, motion } from 'framer-motion'
 import React from 'react'
@@ -8,121 +7,128 @@ import Button from '@/components/Button'
 import Divider from '@/components/Divider'
 import Icon from '@/components/Icon'
 import Layout from '@/components/Layout'
-import Select from '@/components/Select'
 import Spinner from '@/components/Spinner'
-import Switch from '@/components/Switch'
 import { toast } from '@/components/Toast'
-import { compressVideo } from '@/tauri/commands/ffmpeg'
-import { getFileMetadata } from '@/tauri/commands/fs'
-import { extensions } from '@/types/compression'
+import { compressVideos } from '@/tauri/commands/ffmpeg'
+import { CompressionResult } from '@/types/compression'
 import { zoomInTransition } from '@/utils/animation'
 import { formatBytes } from '@/utils/fs'
 import { cn } from '@/utils/tailwind'
 import CancelCompression from './CancelCompression'
 import Compressing from './Compressing'
-import CompressionPreset from './CompressionPreset'
-import CompressionQuality from './CompressionQuality'
+import CompressionPreset from './compression-options/CompressionPreset'
+import CompressionQuality from './compression-options/CompressionQuality'
+import MuteAudio from './compression-options/MuteAudio'
+import TransformVideo from './compression-options/TransformVideo'
+import VideoDimensions from './compression-options/VideoDimensions'
+import VideoExtension from './compression-options/VideoExtension'
+import VideoFPS from './compression-options/VideoFPS'
 import FileName from './FileName'
 import PreviewVideo from './PreviewVideo'
 import SaveVideo from './SaveVideo'
 import Success from './Success'
 import styles from './styles.module.css'
-import TransformVideo from './TransformVideo'
-import VideoDimensions from './VideoDimensions'
-import VideoFPS from './VideoFPS'
 import VideoThumbnail from './VideoThumbnail'
-import { videoProxy } from '../-state'
-
-const videoExtensions = Object.keys(extensions?.video)
+import { appProxy } from '../-state'
 
 function VideoConfig() {
   const {
-    state: {
-      isCompressing,
-      config,
-      id: videoId,
-      isThumbnailGenerating,
-      fileName,
-      isCompressionSuccessful,
-      size: videoSize,
-      videDurationRaw,
-      extension: videoExtension,
-      dimensions,
-      fps,
-    },
-  } = useSnapshot(videoProxy)
+    state: { videos, isCompressing },
+  } = useSnapshot(appProxy)
+  const video = videos.length > 0 ? videos[0] : null
+  const {
+    config,
+    thumbnailPath,
+    fileName,
+    isProcessCompleted,
+    size: videoSize,
+    videDurationRaw,
+    extension: videoExtension,
+    dimensions,
+    fps,
+  } = video ?? {}
 
-  const { convertToExtension, presetName, shouldMuteVideo } = config
+  const { presetName, shouldMuteVideo } = config ?? {}
+  const isThumbnailGenerating = thumbnailPath == null
+  const isSingleVideoMode = videos.length === 1
 
   const handleCompression = async () => {
-    const videoSnapshot = snapshot(videoProxy)
-    if (videoSnapshot.state.isCompressing) return
+    const appSnapshot = snapshot(appProxy)
+    if (appSnapshot.state.isCompressing) return
+
+    const video = appSnapshot.state.videos[0]
     try {
-      videoProxy.takeSnapshot('beforeCompressionStarted')
-      videoProxy.state.isCompressing = true
+      appProxy.takeSnapshot('beforeCompressionStarted')
+      appProxy.state.isCompressing = true
 
       if (
-        videoProxy.state.config.shouldTransformVideo &&
-        videoProxy.state.config.transformVideoConfig?.previewUrl
+        appProxy.state.videos[0].config.shouldTransformVideo &&
+        appProxy.state.videos[0].config.transformVideoConfig?.previewUrl
       ) {
-        videoProxy.state.thumbnailPath =
-          videoProxy.state.config.transformVideoConfig.previewUrl
+        appProxy.state.videos[0].thumbnailPath =
+          appProxy.state.videos[0].config.transformVideoConfig.previewUrl
       }
 
-      const result = await compressVideo({
-        videoPath: videoSnapshot.state.pathRaw as string,
-        convertToExtension:
-          videoSnapshot.state?.config?.convertToExtension ?? 'mp4',
-        presetName: !videoSnapshot?.state?.config?.shouldDisableCompression
+      const { results } = await compressVideos({
+        batchId: `${+new Date()}`,
+        videos: appSnapshot.state.videos.map((v) => ({
+          videoId: v.id!,
+          videoPath: v.pathRaw!,
+        })),
+        convertToExtension: video?.config?.convertToExtension ?? 'mp4',
+        presetName: !video?.config?.shouldDisableCompression
           ? presetName
           : null,
-        videoId,
         shouldMuteVideo,
-        ...(videoSnapshot?.state?.config?.shouldEnableQuality
-          ? { quality: videoSnapshot.state?.config?.quality as number }
+        ...(video?.config?.shouldEnableQuality
+          ? { quality: video?.config?.quality as number }
           : {}),
-        ...(videoSnapshot.state.config.shouldEnableCustomDimensions
-          ? { dimensions: videoSnapshot.state.config.customDimensions }
+        ...(video.config.shouldEnableCustomDimensions
+          ? { dimensions: video.config.customDimensions }
           : {}),
-        ...(videoSnapshot.state.config.shouldEnableCustomFPS
-          ? { fps: videoSnapshot.state.config.customFPS?.toString?.() }
+        ...(video.config.shouldEnableCustomFPS
+          ? { fps: video.config.customFPS?.toString?.() }
           : {}),
-        ...(videoSnapshot.state.config.shouldTransformVideo
+        ...(video.config.shouldTransformVideo
           ? {
               transformsHistory:
-                videoSnapshot.state.config.transformVideoConfig
-                  ?.transformsHistory ?? ([] as any),
+                video.config.transformVideoConfig?.transformsHistory ??
+                ([] as any),
             }
           : {}),
       })
-      if (!result) {
+      if (Object.keys(results).length === 0) {
         throw new Error()
       }
-      const compressedVideoMetadata = await getFileMetadata(result?.filePath)
-      if (!compressedVideoMetadata) {
-        throw new Error()
-      }
-      videoProxy.state.isCompressing = false
-      videoProxy.state.isCompressionSuccessful = true
+      // console.log('Compression results', results)
 
-      const videoSnapshot2 = snapshot(videoProxy.state)
-      videoProxy.state.compressedVideo = {
-        fileName: compressedVideoMetadata?.fileName,
-        fileNameToDisplay: `${videoSnapshot2?.fileName?.slice(
-          0,
-          -((videoSnapshot2?.extension?.length ?? 0) + 1),
-        )}.${compressedVideoMetadata?.extension}`,
-        pathRaw: compressedVideoMetadata?.path,
-        path: core.convertFileSrc(compressedVideoMetadata?.path ?? ''),
-        mimeType: compressedVideoMetadata?.mimeType,
-        sizeInBytes: compressedVideoMetadata?.size,
-        size: formatBytes(compressedVideoMetadata?.size ?? 0),
-        extension: compressedVideoMetadata?.extension,
+      appProxy.state.isCompressing = false
+      appProxy.state.isProcessCompleted = true
+
+      const videosSnapShot = snapshot(appProxy.state.videos)
+      for (const index in videosSnapShot) {
+        const video = videosSnapShot[index]
+        const videoResult: CompressionResult | null = results[video.id!] || null
+
+        appProxy.state.videos[index].compressedVideo = {
+          isSuccessful: !(videoResult == null),
+          fileName: videoResult?.fileMetadata?.fileName ?? video.fileName,
+          fileNameToDisplay: `${video?.fileName?.slice(
+            0,
+            -((video?.extension?.length ?? 0) + 1),
+          )}.${videoResult?.fileMetadata?.extension}`,
+          pathRaw: videoResult?.fileMetadata?.path,
+          path: core.convertFileSrc(videoResult?.fileMetadata?.path ?? ''),
+          mimeType: videoResult?.fileMetadata?.mimeType,
+          sizeInBytes: videoResult?.fileMetadata?.size,
+          size: formatBytes(videoResult?.fileMetadata?.size ?? 0),
+          extension: videoResult?.fileMetadata?.extension,
+        }
       }
     } catch (error) {
       if (error !== 'CANCELLED') {
         toast.error('Something went wrong during compression.')
-        videoProxy.timeTravel('beforeCompressionStarted')
+        appProxy.timeTravel('beforeCompressionStarted')
       }
     }
   }
@@ -141,7 +147,7 @@ function VideoConfig() {
               {fileName && !isCompressing ? <FileName /> : null}
               {isCompressing ? (
                 <Compressing />
-              ) : isCompressionSuccessful ? (
+              ) : isProcessCompleted ? (
                 <>
                   <VideoThumbnail />
                   <Success />
@@ -230,22 +236,7 @@ function VideoConfig() {
               <Divider className="my-3" />
             </>
             <>
-              <div className="flex items-center my-2">
-                <Switch
-                  isSelected={shouldMuteVideo}
-                  onValueChange={() => {
-                    videoProxy.state.config.shouldMuteVideo = !shouldMuteVideo
-                  }}
-                  className="flex justify-center items-center"
-                  isDisabled={isCompressing || isCompressionSuccessful}
-                >
-                  <div className="flex justify-center items-center">
-                    <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm">
-                      Mute Audio
-                    </span>
-                  </div>
-                </Switch>
-              </div>
+              <MuteAudio />
               <Divider className="my-3" />
             </>
 
@@ -253,7 +244,7 @@ function VideoConfig() {
               <CompressionQuality />
               <Divider className="my-3" />
             </>
-            {dimensions ? (
+            {isSingleVideoMode && dimensions ? (
               <>
                 <VideoDimensions />
                 <Divider className="my-3" />
@@ -269,42 +260,13 @@ function VideoConfig() {
             ) : null}
             <>
               <div className="mt-8">
-                <Select
-                  fullWidth
-                  label="Extension:"
-                  className="block flex-shrink-0 rounded-2xl"
-                  size="sm"
-                  value={convertToExtension}
-                  selectedKeys={[convertToExtension]}
-                  onChange={(evt) => {
-                    const value = evt?.target
-                      ?.value as keyof typeof extensions.video
-                    if (value?.length > 0) {
-                      videoProxy.state.config.convertToExtension = value
-                    }
-                  }}
-                  selectionMode="single"
-                  isDisabled={isCompressing || isCompressionSuccessful}
-                  classNames={{
-                    label: '!text-gray-600 dark:!text-gray-400 text-sm',
-                  }}
-                >
-                  {videoExtensions?.map((ext) => (
-                    <SelectItem
-                      key={ext}
-                      value={ext}
-                      className="flex justify-center items-center"
-                    >
-                      {ext}
-                    </SelectItem>
-                  ))}
-                </Select>
+                <VideoExtension />
               </div>
             </>
             <div className="mt-4">
               {isCompressing ? (
                 <CancelCompression />
-              ) : isCompressionSuccessful ? (
+              ) : isProcessCompleted ? (
                 <SaveVideo />
               ) : (
                 <Button

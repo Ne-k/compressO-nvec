@@ -1,7 +1,9 @@
 use crate::domain::{
-    CancelInProgressCompressionPayload, CompressionResult, CustomEvents, TauriEvents,
-    VideoCompressionProgress, VideoInfo, VideoThumbnail,
+    BatchCompressionProgress, BatchCompressionResult, CancelInProgressCompressionPayload,
+    CompressionResult, CustomEvents, TauriEvents, VideoCompressionProgress, VideoInfo,
+    VideoThumbnail, VideoWithPath,
 };
+use crate::fs::get_file_metadata;
 use crossbeam_channel::{Receiver, Sender};
 use nanoid::nanoid;
 use regex::Regex;
@@ -57,7 +59,8 @@ impl FFMPEG {
         video_path: &str,
         convert_to_extension: &str,
         preset_name: Option<&str>,
-        video_id: Option<&str>,
+        video_id: &str,
+        batch_id: Option<&str>,
         should_mute_video: bool,
         quality: u16,
         dimensions: Option<(u32, u32)>,
@@ -68,14 +71,16 @@ impl FFMPEG {
             return Err(String::from("Invalid convert to extension."));
         }
 
-        let id = match video_id {
+        let video_id_clone1 = video_id.to_owned();
+        let video_id_clone2 = video_id.to_owned();
+
+        let batch_id = match batch_id {
             Some(id) => String::from(id),
             None => nanoid!(),
         };
-        let id_clone1 = id.clone();
-        let id_clone2 = id.clone();
+        let batch_id_clone1 = batch_id.clone();
 
-        let file_name = format!("{}.{}", id, convert_to_extension);
+        let file_name = format!("{}.{}", video_id, convert_to_extension);
         let file_name_clone = file_name.clone();
 
         let output_file: PathBuf = [self.assets_dir.clone(), PathBuf::from(&file_name)]
@@ -186,8 +191,6 @@ impl FFMPEG {
 
         vf_filter.push_str(&pad_filter);
 
-        println!(">>>>>Final vf filter {}", vf_filter);
-
         preset.push("-vf");
         preset.push(&vf_filter);
 
@@ -255,8 +258,11 @@ impl FFMPEG {
                         let payload_opt: Option<CancelInProgressCompressionPayload> =
                             serde_json::from_str(payload_str).ok();
                         if let Some(payload) = payload_opt {
-                            let video_id = id_clone2.as_str();
-                            if payload.video_id == video_id {
+                            let batch_id = batch_id_clone1.as_str();
+                            if payload.video_id == video_id_clone1
+                                || (payload.batch_id.is_some()
+                                    && payload.batch_id.unwrap() == batch_id)
+                            {
                                 log::info!("compression requested to cancel.");
                                 match cp_clone4.kill() {
                                     Ok(_) => {
@@ -340,11 +346,10 @@ impl FFMPEG {
                 let app_clone = self.app.clone();
                 tokio::spawn(async move {
                     let file_name_clone_str = file_name_clone.as_str();
-                    let id_clone_str = id_clone1.as_str();
 
                     while let Ok(current_duration) = rx.recv() {
                         let video_progress = VideoCompressionProgress {
-                            video_id: String::from(id_clone_str),
+                            video_id: String::from(video_id_clone2.clone()),
                             file_name: String::from(file_name_clone_str),
                             current_duration,
                         };
@@ -396,10 +401,104 @@ impl FFMPEG {
             }
         };
 
+        let file_metadata = get_file_metadata(&output_file.to_string_lossy().to_string());
         Ok(CompressionResult {
+            video_id: video_id.to_owned(),
             file_name,
             file_path: output_file.display().to_string(),
+            file_metadata: file_metadata.ok(),
         })
+    }
+
+    /// Compressed videos in batch
+    pub async fn compress_videos_batch(
+        &mut self,
+        batch_id: &str,
+        videos: Vec<VideoWithPath>,
+        convert_to_extension: &str,
+        preset_name: Option<&str>,
+        should_mute_video: bool,
+        quality: u16,
+        dimensions: Option<(u32, u32)>,
+        fps: Option<&str>,
+        transforms_history: Option<&Vec<Value>>,
+    ) -> Result<BatchCompressionResult, String> {
+        let mut results: std::collections::HashMap<String, CompressionResult> =
+            std::collections::HashMap::new();
+        let total_count = videos.len();
+
+        for (index, video_with_path) in videos.iter().enumerate() {
+            let video_path = &video_with_path.video_path;
+            let video_id = &video_with_path.video_id;
+
+            let app_clone = self.app.clone();
+            let batch_id_clone = batch_id.to_string();
+            let video_id_clone = video_id.clone();
+
+            tokio::spawn(async move {
+                if let Some(window) = app_clone.get_webview_window("main") {
+                    let _ = window.clone().listen(
+                        CustomEvents::VideoCompressionProgress.as_ref(),
+                        move |evt| {
+                            if let Ok(progress) =
+                                serde_json::from_str::<VideoCompressionProgress>(evt.payload())
+                            {
+                                if progress.video_id == video_id_clone {
+                                    let batch_progress = BatchCompressionProgress {
+                                        batch_id: batch_id_clone.to_owned(),
+                                        current_index: index,
+                                        total_count,
+                                        video_progress: progress,
+                                    };
+                                    let _ = window.emit(
+                                        CustomEvents::BatchCompressionProgress.as_ref(),
+                                        batch_progress,
+                                    );
+                                }
+                            }
+                        },
+                    );
+                }
+            });
+
+            let mut ffmpeg_instance = match FFMPEG::new(&self.app) {
+                Ok(f) => f,
+                Err(e) => return Err(format!("Failed to create ffmpeg instance: {}", e)),
+            };
+
+            match ffmpeg_instance
+                .compress_video(
+                    video_path,
+                    convert_to_extension,
+                    preset_name,
+                    video_id,
+                    Some(&batch_id.to_owned()),
+                    should_mute_video,
+                    quality,
+                    if videos.len() == 1 { dimensions } else { None },
+                    fps,
+                    if videos.len() == 1 {
+                        transforms_history.map(|v| v.as_ref())
+                    } else {
+                        None
+                    },
+                )
+                .await
+            {
+                Ok(result) => {
+                    let video_id = result.video_id.clone();
+                    results.insert(video_id, result);
+                }
+                Err(e) => {
+                    if e == "CANCELLED" {
+                        return Err(String::from("CANCELLED"));
+                    }
+                    log::error!("Failed to compress video at index {}: {}", index, e);
+                }
+            }
+        }
+
+        Ok(BatchCompressionResult { results })
     }
 
     /// Generates a .jpeg thumbnail image from a video path

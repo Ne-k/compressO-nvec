@@ -4,7 +4,7 @@
     "source.organizeImports": "explicit"
   },
   "editor.defaultFormatter": "biomejs.biome",
-  "cSpell.words": ["heroui", "Triggerer", "valtio"],
+  "cSpell.words": ["heroui", "Triggerer", "Unlisten", "valtio"],
   "[json]": {
     "editor.defaultFormatter": "biomejs.biome"
   },

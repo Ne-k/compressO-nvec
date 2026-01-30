@@ -5,21 +5,20 @@ import { useSnapshot } from 'valtio'
 import NumberInput from '@/components/NumberInput'
 import Switch from '@/components/Switch'
 import { slideDownTransition } from '@/utils/animation'
-import { videoProxy } from '../-state'
+import { appProxy } from '../../-state'
 
+// Applies to single video only
 function VideoDimensions() {
   const {
-    state: {
-      isCompressing,
-      isCompressionSuccessful,
-      config: {
-        shouldEnableCustomDimensions,
-        shouldTransformVideo,
-        transformVideoConfig,
-      },
-      dimensions: videoOriginalDimensions,
-    },
-  } = useSnapshot(videoProxy)
+    state: { videos, isCompressing, isProcessCompleted },
+  } = useSnapshot(appProxy)
+  const video = videos.length > 0 ? videos[0] : null
+  const { config, dimensions: videoOriginalDimensions } = video ?? {}
+  const {
+    shouldEnableCustomDimensions,
+    shouldTransformVideo,
+    transformVideoConfig,
+  } = config ?? {}
 
   const videoDimensions = useMemo(
     () =>
@@ -48,6 +47,7 @@ function VideoDimensions() {
 
   useEffect(() => {
     if (
+      appProxy.state.videos.length === 1 &&
       !Number.isNaN(videoDimensions?.width) &&
       !Number.isNaN(videoDimensions)
     ) {
@@ -59,7 +59,7 @@ function VideoDimensions() {
         width: _dimensions[0],
         height: _dimensions[1],
       })
-      videoProxy.state.config.customDimensions = _dimensions
+      appProxy.state.videos[0].config.customDimensions = _dimensions
     }
   }, [videoDimensions])
 
@@ -86,6 +86,7 @@ function VideoDimensions() {
 
   const handleChange = (value: number, type: 'width' | 'height') => {
     if (
+      appProxy.state.videos.length !== 1 ||
       !value ||
       value <= 0 ||
       videoDimensions == null ||
@@ -104,7 +105,7 @@ function VideoDimensions() {
       width: _dimensions[0],
       height: _dimensions[1],
     }))
-    videoProxy.state.config.customDimensions = _dimensions
+    appProxy.state.videos[0].config.customDimensions = _dimensions
   }
 
   return (
@@ -112,10 +113,12 @@ function VideoDimensions() {
       <Switch
         isSelected={shouldEnableCustomDimensions}
         onValueChange={() => {
-          videoProxy.state.config.shouldEnableCustomDimensions =
-            !shouldEnableCustomDimensions
+          if (videos.length === 1) {
+            appProxy.state.videos[0].config.shouldEnableCustomDimensions =
+              !shouldEnableCustomDimensions
+          }
         }}
-        isDisabled={isCompressing || isCompressionSuccessful}
+        isDisabled={videos.length > 1 || isCompressing || isProcessCompleted}
       >
         <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full">
           Dimensions
@@ -134,7 +137,7 @@ function VideoDimensions() {
               onValueChange={(val) => handleChange(val, 'width')}
               labelPlacement="outside"
               classNames={{ label: '!text-gray-600 dark:!text-gray-400' }}
-              isDisabled={isCompressing || isCompressionSuccessful}
+              isDisabled={isCompressing || isProcessCompleted}
             />
             <NumberInput
               label="Height"
@@ -143,7 +146,7 @@ function VideoDimensions() {
               onValueChange={(val) => handleChange(val, 'height')}
               labelPlacement="outside"
               classNames={{ label: '!text-gray-600 dark:!text-gray-400' }}
-              isDisabled={isCompressing || isCompressionSuccessful}
+              isDisabled={isCompressing || isProcessCompleted}
             />
           </motion.div>
         ) : null}

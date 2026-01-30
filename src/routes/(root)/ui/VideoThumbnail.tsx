@@ -1,12 +1,15 @@
 import { useSnapshot } from 'valtio'
 
 import Image from '@/components/Image'
-import { videoProxy } from '../-state'
+import { appProxy } from '../-state'
 
+// Adjust to all videos
 function VideoThumbnail() {
   const {
-    state: { thumbnailPath },
-  } = useSnapshot(videoProxy)
+    state: { videos },
+  } = useSnapshot(appProxy)
+  const video = videos.length > 0 ? videos[0] : null
+  const { thumbnailPath } = video ?? {}
 
   return (
     <Image

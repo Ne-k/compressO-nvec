@@ -4,19 +4,17 @@ import { useSnapshot } from 'valtio'
 
 import Image from '@/components/Image'
 import Progress from '@/components/Progress'
-import { videoProxy } from '../-state'
+import { appProxy } from '../-state'
 
 function Compressing() {
   const {
-    state: {
-      isCompressing,
-      videDurationRaw,
-      thumbnailPath,
-      config,
-      compressionProgress,
-    },
-  } = useSnapshot(videoProxy)
-  const { convertToExtension, shouldDisableCompression } = config
+    state: { isCompressing, videos },
+  } = useSnapshot(appProxy)
+  const video = videos.length > 0 ? videos[0] : null
+
+  const { videDurationRaw, thumbnailPath, config, compressionProgress } =
+    video ?? {}
+  const { convertToExtension, shouldDisableCompression } = config ?? {}
 
   return isCompressing ? (
     <motion.div

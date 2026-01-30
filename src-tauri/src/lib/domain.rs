@@ -4,8 +4,10 @@ use strum::{AsRefStr, EnumProperty};
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompressionResult {
+    pub video_id: String,
     pub file_name: String,
     pub file_path: String,
+    pub file_metadata: Option<FileMetadata>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -38,6 +40,7 @@ pub struct VideoThumbnail {
 pub enum CustomEvents {
     VideoCompressionProgress,
     CancelInProgressCompression,
+    BatchCompressionProgress,
 }
 
 #[derive(EnumProperty)]
@@ -50,6 +53,7 @@ pub enum TauriEvents {
 #[serde(rename_all = "camelCase")]
 pub struct CancelInProgressCompressionPayload {
     pub video_id: String,
+    pub batch_id: Option<String>,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -81,4 +85,41 @@ pub struct VideoTransforms {
     pub crop: VideoCoordinates,
     pub rotate: i32,
     pub flip: VideoFlip,
+}
+
+use std::collections::HashMap;
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchCompressionResult {
+    pub results: HashMap<String, CompressionResult>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchCompressionProgress {
+    pub batch_id: String,
+    pub current_index: usize,
+    pub total_count: usize,
+    pub video_progress: VideoCompressionProgress,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct VideoFileMetadata {
+    pub id: String,
+    pub file_name: String,
+    pub path: String,
+    pub size: u64,
+    pub thumbnail_path: Option<String>,
+    pub duration: Option<String>,
+    pub dimensions: Option<(u32, u32)>,
+    pub fps: Option<f32>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct VideoWithPath {
+    pub video_path: String,
+    pub video_id: String,
 }

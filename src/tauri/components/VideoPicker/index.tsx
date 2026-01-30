@@ -11,8 +11,9 @@ type Error = {
 
 type VideoPickerProps = {
   children: (_: ChildrenFnParams) => React.ReactNode
-  onSuccess?: (_: { filePath: string }) => void
+  onSuccess?: (_: { filePath: string | string[] }) => void
   onError?: (_: Error) => void
+  multiple?: boolean
 }
 
 const videoExtensions = Object.keys(extensions?.video)
@@ -21,13 +22,14 @@ export default function VideoPicker({
   children,
   onSuccess,
   onError,
+  multiple = false,
 }: VideoPickerProps) {
   async function onClick() {
     try {
       const filePath = await open({
         directory: false,
-        multiple: false,
-        title: 'Select video to compress',
+        multiple,
+        title: `Select video${multiple ? '(s)' : ''} to compress.`,
         filters: [{ name: 'video', extensions: videoExtensions }],
       })
       if (filePath == null) {
@@ -40,7 +42,7 @@ export default function VideoPicker({
       onSuccess?.({ filePath })
     } catch (error: any) {
       onError?.({
-        message: error?.message ?? 'Could not select video.',
+        message: error?.message ?? 'Could not select a video.',
         data: error,
       })
     }

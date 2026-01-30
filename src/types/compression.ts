@@ -1,3 +1,5 @@
+import { FileMetadata } from './fs'
+
 export const extensions = {
   video: { mp4: 'mp4', mov: 'mov', mkv: 'mkv', webm: 'webm', avi: 'avi' },
 } as const
@@ -8,13 +10,16 @@ export const compressionPresets = {
 } as const
 
 export type CompressionResult = {
+  videoId: string
   fileName: string
   filePath: string
+  fileMetadata: FileMetadata
 }
 
 export enum CustomEvents {
   VideoCompressionProgress = 'VideoCompressionProgress',
   CancelInProgressCompression = 'CancelInProgressCompression',
+  BatchCompressionProgress = 'BatchCompressionProgress',
 }
 
 export type VideoCompressionProgress = {
@@ -48,3 +53,25 @@ export type VideoTransformsHistory =
     }
   | { type: 'rotate'; value: number }
   | { type: 'flip'; value: { horizontal: boolean; vertical: boolean } }
+
+export type BatchCompressionResult = {
+  results: Record<string, CompressionResult>
+}
+
+export type BatchCompressionProgress = {
+  batchId: string
+  currentIndex: number
+  totalCount: number
+  videoProgress: VideoCompressionProgress
+}
+
+export type VideoFileMetadata = {
+  id: string
+  fileName: string
+  path: string
+  size: number
+  thumbnailPath?: string
+  duration?: string
+  dimensions?: [number, number]
+  fps?: number
+}

@@ -25,8 +25,7 @@ export type VideoConfig = {
 }
 
 export type Video = {
-  id?: string | null
-  isFileSelected: boolean
+  id: string | null
   pathRaw?: string | null
   path?: string | null
   fileName?: string | null
@@ -36,12 +35,12 @@ export type Video = {
   extension?: null | string
   thumbnailPathRaw?: string | null
   thumbnailPath?: string | null
-  isThumbnailGenerating?: boolean
   videoDurationMilliseconds?: number | null
   videDurationRaw?: string | null
   isCompressing?: boolean
-  isCompressionSuccessful?: boolean
+  isProcessCompleted?: boolean
   compressedVideo?: {
+    isSuccessful: boolean
     pathRaw?: string | null
     path?: string | null
     fileName?: string | null
@@ -50,12 +49,25 @@ export type Video = {
     sizeInBytes?: number | null
     size?: string | null
     extension?: null | string
-    isSaved?: boolean
     isSaving?: boolean
+    isSaved?: boolean
     savedPath?: string
   } | null
   compressionProgress?: number
   config: VideoConfig
   dimensions?: { width: number; height: number }
   fps?: number
+}
+
+export type App = {
+  batchId?: string
+  videos: Video[]
+  currentVideoIndex: number
+  totalDurationMs: number
+  isCompressing: boolean
+  totalProgress: number
+  isProcessCompleted: boolean
+  isSaving: boolean
+  isSaved: boolean
+  isLoadingFiles: boolean
 }

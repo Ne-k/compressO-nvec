@@ -1,9 +1,9 @@
 import cloneDeep from 'lodash/cloneDeep'
 import { proxy } from 'valtio'
 
-import { Video, VideoConfig } from './-types'
+import { App, VideoConfig } from '../../types/app'
 
-const videoConfigInitialState: VideoConfig = {
+export const videoConfigInitialState: VideoConfig = {
   convertToExtension: 'mp4',
   presetName: 'ironclad',
   shouldDisableCompression: false,
@@ -12,26 +12,16 @@ const videoConfigInitialState: VideoConfig = {
   shouldEnableQuality: false,
 }
 
-const videoInitialState: Video = {
-  id: null,
-  isFileSelected: false,
-  pathRaw: null,
-  path: null,
-  fileName: null,
-  mimeType: null,
-  sizeInBytes: null,
-  size: null,
-  extension: null,
-  thumbnailPathRaw: null,
-  thumbnailPath: null,
-  isThumbnailGenerating: false,
-  videoDurationMilliseconds: null,
-  videDurationRaw: null,
+const appInitialState: App = {
+  videos: [],
+  currentVideoIndex: 0,
+  totalDurationMs: 0,
   isCompressing: false,
-  isCompressionSuccessful: false,
-  compressedVideo: null,
-  compressionProgress: 0,
-  config: videoConfigInitialState,
+  totalProgress: 0,
+  isProcessCompleted: false,
+  isSaving: false,
+  isSaved: false,
+  isLoadingFiles: false,
 }
 
 const snapshotMoment = {
@@ -40,33 +30,33 @@ const snapshotMoment = {
 
 type SnapshotMoment = keyof typeof snapshotMoment
 
-type VideoProxy = {
-  state: Video
-  snapshots: Record<SnapshotMoment, Video>
+type AppProxy = {
+  state: App
+  snapshots: Record<SnapshotMoment, App>
   takeSnapshot: (moment: SnapshotMoment) => void
   timeTravel: (to: SnapshotMoment) => void
   resetProxy: () => void
 }
 
 const snapshotsInitialState = {
-  [snapshotMoment.beforeCompressionStarted]: cloneDeep(videoInitialState),
+  [snapshotMoment.beforeCompressionStarted]: cloneDeep(appInitialState),
 }
 
-export const videoProxy: VideoProxy = proxy({
-  state: videoInitialState,
+export const appProxy: AppProxy = proxy({
+  state: appInitialState,
   snapshots: snapshotsInitialState,
   takeSnapshot(moment: SnapshotMoment) {
     if (moment in snapshotMoment) {
-      videoProxy.snapshots[moment] = cloneDeep(videoProxy.state)
+      appProxy.snapshots[moment] = cloneDeep(appProxy.state)
     }
   },
   timeTravel(to: SnapshotMoment) {
     if (to in snapshotMoment) {
-      videoProxy.state = cloneDeep(videoProxy.snapshots[to])
+      appProxy.state = cloneDeep(appProxy.snapshots[to])
     }
   },
   resetProxy() {
-    videoProxy.state = cloneDeep(videoInitialState)
-    videoProxy.snapshots = cloneDeep(snapshotsInitialState)
+    appProxy.state = cloneDeep(appInitialState)
+    appProxy.snapshots = cloneDeep(snapshotsInitialState)
   },
 })

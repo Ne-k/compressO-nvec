@@ -8,36 +8,40 @@ import Divider from '@/components/Divider'
 import Icon from '@/components/Icon'
 import Tooltip from '@/components/Tooltip'
 import { VideoTransforms, VideoTransformsHistory } from '@/types/compression'
-import { videoProxy } from '../-state'
+import { appProxy } from '../../-state'
 
+// Applies to single video only
 function VideoTransformer() {
   const {
-    state: {
-      thumbnailPath,
-      config: { shouldTransformVideo },
-    },
-  } = useSnapshot(videoProxy)
+    state: { videos },
+  } = useSnapshot(appProxy)
+  const video = videos.length > 0 ? videos[0] : null
+  const { config, thumbnailPath } = video ?? {}
+  const { shouldTransformVideo } = config ?? {}
 
   const cropperRef = useRef<CropperRef>(null)
   const debouncedRef = useRef<NodeJS.Timeout | null>(null)
 
   const recordTransformHistory = (action: VideoTransformsHistory) => {
-    const transformsHistory =
-      videoProxy.state.config.transformVideoConfig?.transformsHistory ?? []
+    if (appProxy.state.videos.length === 1) {
+      const transformsHistory =
+        appProxy.state.videos[0].config.transformVideoConfig
+          ?.transformsHistory ?? []
 
-    transformsHistory.push(action)
+      transformsHistory.push(action)
 
-    if (videoProxy.state.config.transformVideoConfig) {
-      videoProxy.state.config.transformVideoConfig.transformsHistory =
-        transformsHistory
-    } else {
-      videoProxy.state.config.transformVideoConfig = {
-        transforms: {
-          crop: { width: 0, height: 0, top: 0, left: 0 },
-          flip: { horizontal: false, vertical: false },
-          rotate: 0,
-        },
-        transformsHistory,
+      if (appProxy.state.videos[0].config.transformVideoConfig) {
+        appProxy.state.videos[0].config.transformVideoConfig.transformsHistory =
+          transformsHistory
+      } else {
+        appProxy.state.videos[0].config.transformVideoConfig = {
+          transforms: {
+            crop: { width: 0, height: 0, top: 0, left: 0 },
+            flip: { horizontal: false, vertical: false },
+            rotate: 0,
+          },
+          transformsHistory,
+        }
       }
     }
   }
@@ -93,16 +97,17 @@ function VideoTransformer() {
       const cropperState = cropper.getState()
       if (cropperState) {
         const blob = await getCanvasBlob(cropper.getCanvas()!)
-        if (videoProxy.state.config.transformVideoConfig?.previewUrl) {
+        if (appProxy.state.videos[0].config.transformVideoConfig?.previewUrl) {
           URL.revokeObjectURL(
-            videoProxy.state.config.transformVideoConfig.previewUrl,
+            appProxy.state.videos[0].config.transformVideoConfig.previewUrl,
           )
         }
         const coordinates = cropperState.coordinates
         const transforms = cropperState.transforms
 
         const transformsHistory =
-          videoProxy.state.config.transformVideoConfig?.transformsHistory ?? []
+          appProxy.state.videos[0].config.transformVideoConfig
+            ?.transformsHistory ?? []
 
         const newTransforms: VideoTransforms = {
           crop: {
@@ -120,7 +125,8 @@ function VideoTransformer() {
 
         if (
           JSON.stringify(
-            videoProxy.state.config.transformVideoConfig?.transforms?.crop,
+            appProxy.state.videos[0].config.transformVideoConfig?.transforms
+              ?.crop,
           ) !== JSON.stringify(newTransforms?.crop)
         ) {
           transformsHistory.push({
@@ -129,7 +135,7 @@ function VideoTransformer() {
           })
         }
 
-        videoProxy.state.config.transformVideoConfig = {
+        appProxy.state.videos[0].config.transformVideoConfig = {
           transforms: newTransforms,
           previewUrl: URL.createObjectURL(blob!),
           transformsHistory,
@@ -138,7 +144,7 @@ function VideoTransformer() {
     }, 500)
   }
 
-  return (
+  return videos.length === 1 ? (
     <>
       <Cropper
         ref={cropperRef}
@@ -153,7 +159,8 @@ function VideoTransformer() {
           ? {
               defaultCoordinates(state: CropperState) {
                 const crop =
-                  videoProxy.state.config.transformVideoConfig?.transforms?.crop
+                  appProxy.state.videos[0].config.transformVideoConfig
+                    ?.transforms?.crop
                 return {
                   left: crop?.left ?? 0,
                   top: crop?.top ?? 0,
@@ -163,7 +170,8 @@ function VideoTransformer() {
               },
               defaultPosition() {
                 const crop =
-                  videoProxy.state.config.transformVideoConfig?.transforms?.crop
+                  appProxy.state.videos[0].config.transformVideoConfig
+                    ?.transforms?.crop
                 return {
                   left: crop?.left ?? 0,
                   top: crop?.top ?? 0,
@@ -171,7 +179,8 @@ function VideoTransformer() {
               },
               defaultSize(state: CropperState) {
                 const crop =
-                  videoProxy.state.config.transformVideoConfig?.transforms?.crop
+                  appProxy.state.videos[0].config.transformVideoConfig
+                    ?.transforms?.crop
                 return {
                   width: crop?.width ?? state.imageSize.width,
                   height: crop?.height ?? state.imageSize.height,
@@ -179,7 +188,8 @@ function VideoTransformer() {
               },
               defaultTransforms() {
                 const transforms =
-                  videoProxy.state.config.transformVideoConfig?.transforms
+                  appProxy.state.videos[0].config.transformVideoConfig
+                    ?.transforms
                 return {
                   rotate: transforms?.rotate ?? 0,
                   flip: {
@@ -234,7 +244,7 @@ function VideoTransformer() {
         </>
       </div>
     </>
-  )
+  ) : null
 }
 
 async function getCanvasBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {

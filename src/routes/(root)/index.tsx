@@ -1,3 +1,4 @@
+import { Spinner } from '@heroui/react'
 import { createFileRoute } from '@tanstack/react-router'
 import { core } from '@tauri-apps/api'
 import { motion } from 'framer-motion'
@@ -13,103 +14,132 @@ import VideoPicker from '@/tauri/components/VideoPicker'
 import { extensions } from '@/types/compression'
 import { formatBytes } from '@/utils/fs'
 import { convertDurationToMilliseconds } from '@/utils/string'
-import { videoProxy } from './-state'
+import { appProxy, videoConfigInitialState } from './-state'
 import DragAndDrop from './ui/DragAndDrop'
 import Setting from './ui/Setting'
 import VideoConfig from './ui/VideoConfig'
+import { Video } from '../../types/app'
 
 export const Route = createFileRoute('/(root)/')({
   component: Root,
 })
 
 function Root() {
-  const { state, resetProxy } = useSnapshot(videoProxy)
+  const { state, resetProxy } = useSnapshot(appProxy)
 
-  const { isFileSelected, isCompressing } = state
+  const { videos, isLoadingFiles } = state
 
   const handleVideoSelected = React.useCallback(
-    async (path: string) => {
-      if (isCompressing) return
-      try {
-        if (!path) {
-          toast.error('Invalid file selected.')
-          return
-        }
-        const [fileMetadata, videoInfo] = await Promise.all([
-          getFileMetadata(path),
-          getVideoInfo(path),
-        ])
+    async (path: string | string[]) => {
+      if (appProxy.state.isCompressing) return
 
-        if (
-          !fileMetadata ||
-          (typeof fileMetadata?.size === 'number' && fileMetadata?.size <= 1000)
-        ) {
-          toast.error('Invalid file.')
-          return
-        }
-        videoProxy.state.isFileSelected = true
-        videoProxy.state.pathRaw = path
-        videoProxy.state.path = core.convertFileSrc(path)
-        videoProxy.state.fileName = fileMetadata?.fileName
-        videoProxy.state.mimeType = fileMetadata?.mimeType
-        videoProxy.state.sizeInBytes = fileMetadata?.size
-        videoProxy.state.size = formatBytes(fileMetadata?.size ?? 0)
-        videoProxy.state.isThumbnailGenerating = true
-        videoProxy.state.extension = fileMetadata?.extension?.toLowerCase?.()
+      appProxy.state.isLoadingFiles = true
+      const videoPaths = Array.isArray(path) ? path : [path]
+      if (videoPaths.length === 0) {
+        toast.error('Invalid video(s) selected.')
+        return
+      }
+      // console.log('videoPaths', videoPaths)
+      let corruptedFilesCount = 0
+      for (const index in videoPaths) {
+        const path = videoPaths[index]
+        try {
+          const [fileMetadata, videoInfo, videoThumbnail] = await Promise.all([
+            getFileMetadata(path),
+            getVideoInfo(path),
+            generateVideoThumbnail(path),
+          ])
+          // console.log('>>', [fileMetadata, videoInfo, videoThumbnail])
 
-        if (fileMetadata?.extension) {
-          videoProxy.state.config.convertToExtension = videoProxy.state
-            .extension as keyof (typeof extensions)['video']
-        }
-
-        if (videoInfo) {
-          const dimensions = videoInfo.dimensions
           if (
-            !Number.isNaN(videoInfo.dimensions?.[0]) &&
-            !Number.isNaN(videoInfo.dimensions[1])
+            !fileMetadata ||
+            (typeof fileMetadata?.size === 'number' &&
+              fileMetadata?.size <= 1000)
           ) {
-            videoProxy.state.dimensions = {
-              width: dimensions[0],
-              height: dimensions[1],
+            corruptedFilesCount++
+            continue
+          }
+
+          const videoState: Video = {
+            id: videoThumbnail?.id ?? `${index}-${+new Date()}`,
+            pathRaw: path,
+            path: core.convertFileSrc(path),
+            fileName: fileMetadata?.fileName,
+            mimeType: fileMetadata?.mimeType,
+            sizeInBytes: fileMetadata?.size,
+            size: formatBytes(fileMetadata?.size ?? 0),
+            extension: fileMetadata?.extension?.toLowerCase?.(),
+            config: videoConfigInitialState,
+          }
+
+          if (fileMetadata?.extension) {
+            videoState.config.convertToExtension =
+              fileMetadata?.extension as keyof (typeof extensions)['video']
+          }
+
+          if (videoInfo) {
+            const dimensions = videoInfo.dimensions
+            if (
+              !Number.isNaN(videoInfo.dimensions?.[0]) &&
+              !Number.isNaN(videoInfo.dimensions[1])
+            ) {
+              videoState.dimensions = {
+                width: dimensions[0],
+                height: dimensions[1],
+              }
+            }
+            const duration = videoInfo.duration
+            const durationInMilliseconds =
+              convertDurationToMilliseconds(duration)
+            if (durationInMilliseconds > 0) {
+              videoState.videDurationRaw = duration
+              videoState.videoDurationMilliseconds = durationInMilliseconds
+            }
+            if (videoInfo.fps) {
+              videoState.fps = Math.ceil(videoInfo.fps)
             }
           }
-          const duration = videoInfo.duration
-          const durationInMilliseconds = convertDurationToMilliseconds(duration)
-          if (durationInMilliseconds > 0) {
-            videoProxy.state.videDurationRaw = duration
-            videoProxy.state.videoDurationMilliseconds = durationInMilliseconds
-          }
-          if (videoInfo.fps) {
-            videoProxy.state.fps = Math.ceil(videoInfo.fps)
-          }
-        }
 
-        const thumbnail = await generateVideoThumbnail(path)
-
-        videoProxy.state.isThumbnailGenerating = false
-        if (thumbnail) {
-          videoProxy.state.id = thumbnail?.id
-          videoProxy.state.thumbnailPathRaw = thumbnail?.filePath
-          videoProxy.state.thumbnailPath = core.convertFileSrc(
-            thumbnail?.filePath,
-          )
+          if (videoThumbnail) {
+            videoState.id = videoThumbnail?.id
+            videoState.thumbnailPathRaw = videoThumbnail?.filePath
+            videoState.thumbnailPath = core.convertFileSrc(
+              videoThumbnail?.filePath,
+            )
+          }
+          appProxy.state.videos.push(videoState)
+        } catch {
+          corruptedFilesCount++
         }
-      } catch {
-        resetProxy()
-        toast.error('File seems to be corrupted.')
+      }
+      appProxy.state.isLoadingFiles = false
+      if (corruptedFilesCount > 0) {
+        toast.error(
+          `${videoPaths.length > 1 ? 'Some files seem' : 'File seems'} to be corrupted/invalid and are filtered out.`,
+        )
+        if (corruptedFilesCount === videoPaths.length) {
+          resetProxy()
+        }
       }
     },
-    [isCompressing, resetProxy],
+    [resetProxy],
   )
 
-  return isFileSelected ? (
-    <VideoConfig />
+  return videos.length ? (
+    isLoadingFiles ? (
+      <Spinner size="lg" />
+    ) : (
+      <VideoConfig />
+    )
   ) : (
     <Layout
       containerProps={{ className: 'relative' }}
       childrenProps={{ className: 'm-auto' }}
     >
-      <VideoPicker onSuccess={({ filePath }) => handleVideoSelected(filePath)}>
+      <VideoPicker
+        multiple
+        onSuccess={({ filePath }) => handleVideoSelected(filePath)}
+      >
         {({ onClick }) => (
           <motion.div
             role="button"
@@ -137,13 +167,17 @@ function Root() {
               <p className="italic text-sm mt-4 text-gray-600 dark:text-gray-400 text-center">
                 Drag & Drop
                 <span className="block">Or</span>
-                Click to select a video.
+                Click to select video(s).
               </p>
             </div>
           </motion.div>
         )}
       </VideoPicker>
-      <DragAndDrop disable={isFileSelected} onFile={handleVideoSelected} />
+      <DragAndDrop
+        multiple
+        disable={videos.length > 0}
+        onFile={handleVideoSelected}
+      />
       <Setting />
     </Layout>
   )

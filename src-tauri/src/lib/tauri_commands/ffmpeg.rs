@@ -1,5 +1,5 @@
 use crate::{
-    domain::{CompressionResult, VideoInfo, VideoThumbnail},
+    domain::{BatchCompressionResult, CompressionResult, VideoInfo, VideoThumbnail, VideoWithPath},
     ffmpeg::{self},
     fs::delete_stale_files,
 };
@@ -11,7 +11,7 @@ pub async fn compress_video(
     video_path: &str,
     convert_to_extension: &str,
     preset_name: Option<&str>,
-    video_id: Option<&str>,
+    video_id: &str,
     should_mute_video: bool,
     quality: u16,
     dimensions: Option<(u32, u32)>,
@@ -33,6 +33,7 @@ pub async fn compress_video(
             convert_to_extension,
             preset_name,
             video_id,
+            None,
             should_mute_video,
             quality,
             dimensions,
@@ -59,4 +60,43 @@ pub async fn generate_video_thumbnail(
 pub async fn get_video_info(app: tauri::AppHandle, video_path: &str) -> Result<VideoInfo, String> {
     let mut ffmpeg = ffmpeg::FFMPEG::new(&app)?;
     ffmpeg.get_video_info(video_path).await
+}
+
+#[tauri::command]
+pub async fn compress_videos_batch(
+    app: tauri::AppHandle,
+    batch_id: &str,
+    videos: Vec<VideoWithPath>,
+    convert_to_extension: &str,
+    preset_name: Option<&str>,
+    should_mute_video: bool,
+    quality: u16,
+    dimensions: Option<(u32, u32)>,
+    fps: Option<&str>,
+    transforms_history: Option<Vec<Value>>,
+) -> Result<BatchCompressionResult, String> {
+    let mut ffmpeg = ffmpeg::FFMPEG::new(&app)?;
+    if let Ok(files) =
+        delete_stale_files(ffmpeg.get_asset_dir().as_str(), 24 * 60 * 60 * 1000).await
+    {
+        log::debug!(
+            "[main] Stale files deleted. Number of deleted files = {}",
+            files.len()
+        )
+    };
+    ffmpeg
+        .compress_videos_batch(
+            batch_id,
+            videos,
+            convert_to_extension,
+            preset_name,
+            should_mute_video,
+            quality,
+            dimensions,
+            fps,
+            transforms_history.as_ref(),
+        )
+        .await
+        .map(|result| Ok(result))
+        .unwrap_or_else(|err| Err(err))
 }

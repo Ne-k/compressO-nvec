@@ -1,17 +1,21 @@
 import { useSnapshot } from 'valtio'
 
+import VideoTransformer from './compression-options/VideoTransformer'
 import VideoThumbnail from './VideoThumbnail'
-import VideoTransformer from './VideoTransformer'
-import { videoProxy } from '../-state'
+import { appProxy } from '../-state'
 
+// TODO: Make it local for each video
 function PreviewVideo() {
   const {
-    state: {
-      config: { shouldTransformVideo },
-    },
-  } = useSnapshot(videoProxy)
+    state: { videos },
+  } = useSnapshot(appProxy)
+  const video = videos.length > 0 ? videos[0] : null
+  const { config } = video ?? {}
+  const { shouldTransformVideo } = config ?? {}
 
-  return <>{shouldTransformVideo ? <VideoTransformer /> : <VideoThumbnail />}</>
+  return videos.length === 1 ? (
+    <>{shouldTransformVideo ? <VideoTransformer /> : <VideoThumbnail />}</>
+  ) : null
 }
 
 export default PreviewVideo

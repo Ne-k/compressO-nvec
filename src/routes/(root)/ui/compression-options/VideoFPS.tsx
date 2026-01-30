@@ -5,28 +5,29 @@ import { useSnapshot } from 'valtio'
 import Select from '@/components/Select'
 import Switch from '@/components/Switch'
 import { slideDownTransition } from '@/utils/animation'
-import { videoProxy } from '../-state'
+import { appProxy } from '../../-state'
 
 const FPS = [24, 25, 30, 50, 60] as const
 
 function VideoFPS() {
   const {
-    state: {
-      isCompressing,
-      isCompressionSuccessful,
-      config: { shouldEnableCustomFPS, customFPS },
-      fps,
-    },
-  } = useSnapshot(videoProxy)
+    state: { videos, isCompressing, isProcessCompleted },
+  } = useSnapshot(appProxy)
+  const video = videos.length > 0 ? videos[0] : null
+  const { config, fps } = video ?? {}
+  const { shouldEnableCustomFPS, customFPS } = config ?? {}
 
   return (
     <>
       <Switch
         isSelected={shouldEnableCustomFPS}
         onValueChange={() => {
-          videoProxy.state.config.shouldEnableCustomFPS = !shouldEnableCustomFPS
+          if (appProxy.state.videos.length) {
+            appProxy.state.videos[0].config.shouldEnableCustomFPS =
+              !shouldEnableCustomFPS
+          }
         }}
-        isDisabled={isCompressing || isCompressionSuccessful}
+        isDisabled={videos.length === 0 || isCompressing || isProcessCompleted}
       >
         <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full">
           FPS
@@ -43,13 +44,17 @@ function VideoFPS() {
               size="sm"
               value={String(customFPS ?? fps)}
               onChange={(evt) => {
-                const value = evt?.target?.value
-                if (value && !Number.isNaN(+value)) {
-                  videoProxy.state.config.customFPS = +value
+                if (appProxy.state.videos.length) {
+                  const value = evt?.target?.value
+                  if (value && !Number.isNaN(+value)) {
+                    appProxy.state.videos[0].config.customFPS = +value
+                  }
                 }
               }}
               selectionMode="single"
-              isDisabled={isCompressing || isCompressionSuccessful}
+              isDisabled={
+                videos.length === 0 || isCompressing || isProcessCompleted
+              }
               classNames={{
                 label: '!text-gray-600 dark:!text-gray-400 text-xs',
               }}

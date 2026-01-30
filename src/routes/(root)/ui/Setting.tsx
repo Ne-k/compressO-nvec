@@ -72,10 +72,10 @@ function AppSetting() {
     setIsCacheDeleting(true)
     try {
       await invokeDeleteCache()
-      toast.success('All caches were cleared.')
+      toast.success('All cache were cleared.')
       setConfirmClearCache(false)
     } catch (_) {
-      toast.error('Could not clear cache at the moment.')
+      toast.error('There was a problem clearing cache.')
     }
     setIsCacheDeleting(false)
   }

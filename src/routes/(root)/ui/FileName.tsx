@@ -1,26 +1,20 @@
-import { UseDisclosureProps, useDisclosure } from '@heroui/modal'
+import { useDisclosure } from '@heroui/modal'
+import { UseDisclosureProps } from '@heroui/react'
 import React from 'react'
 import { snapshot, useSnapshot } from 'valtio'
 
 import Button from '@/components/Button'
-import Code from '@/components/Code'
 import Icon from '@/components/Icon'
 import Tooltip from '@/components/Tooltip'
-import { deleteFile } from '@/tauri/commands/fs'
 import AlertDialog, { AlertDialogButton } from '@/ui/Dialogs/AlertDialog'
-import { videoProxy } from '../-state'
+import { appProxy } from '../-state'
 
+// TODO: Rename component to ExitProcess
 function FileName() {
   const {
-    state: {
-      isCompressionSuccessful,
-      compressedVideo,
-      thumbnailPathRaw,
-      fileName,
-      isFileSelected,
-    },
+    state: { videos, isProcessCompleted },
     resetProxy,
-  } = useSnapshot(videoProxy)
+  } = useSnapshot(appProxy)
 
   const alertDiscloser = useDisclosure()
 
@@ -30,10 +24,10 @@ function FileName() {
     closeModal: UseDisclosureProps['onClose']
   }) => {
     try {
-      await Promise.allSettled([
-        deleteFile(compressedVideo?.pathRaw as string),
-        deleteFile(thumbnailPathRaw as string),
-      ])
+      // await Promise.allSettled([
+      //   deleteFile(compressedVideo?.pathRaw as string),
+      //   deleteFile(thumbnailPathRaw as string),
+      // ])
       closeModal?.()
       resetProxy()
     } catch {
@@ -42,11 +36,8 @@ function FileName() {
   }
 
   const handleCancelCompression = () => {
-    const videoSnapshot = snapshot(videoProxy)
-    if (
-      videoSnapshot.state.isCompressionSuccessful &&
-      !videoSnapshot.state.compressedVideo?.isSaved
-    ) {
+    const appSnapshot = snapshot(appProxy)
+    if (appSnapshot.state.isProcessCompleted && !appSnapshot.state.isSaved) {
       alertDiscloser.onOpen()
     } else {
       resetProxy()
@@ -54,24 +45,23 @@ function FileName() {
   }
 
   const handleReconfigure = () => {
-    videoProxy.timeTravel('beforeCompressionStarted')
+    appProxy.timeTravel('beforeCompressionStarted')
   }
 
-  const fileNameDisplay =
-    (isCompressionSuccessful ? compressedVideo?.fileNameToDisplay : fileName) ??
-    ''
+  // const fileNameDisplay =
+  //   (isProcessCompleted ? compressedVideo?.fileNameToDisplay : fileName) ?? ''
 
-  return isFileSelected ? (
+  return videos.length ? (
     <>
       <div className="mx-auto w-fit flex justify-center items-center mb-2 gap-1">
-        <Code className="ml-auto mr-auto text-center rounded-xl px-4 text-xs xl:text-sm">
+        {/* <Code className="ml-auto mr-auto text-center rounded-xl px-4 text-xs xl:text-sm">
           {fileNameDisplay?.length > 50
             ? `${fileNameDisplay?.slice(0, 20)}...${fileNameDisplay?.slice(
                 -10,
               )}`
             : fileNameDisplay}
-        </Code>
-        {isCompressionSuccessful ? (
+        </Code> */}
+        {isProcessCompleted ? (
           <Button
             isIconOnly
             size="sm"

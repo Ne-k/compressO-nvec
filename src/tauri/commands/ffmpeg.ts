@@ -1,39 +1,39 @@
 import { core } from '@tauri-apps/api'
 
 import {
-  CompressionResult,
+  BatchCompressionResult,
   VideoInfo,
   VideoThumbnail,
   VideoTransformsHistory,
 } from '@/types/compression'
 import { FileMetadata } from '@/types/fs'
 
-export function compressVideo({
-  videoPath,
+export function compressVideos({
+  batchId,
+  videos,
   convertToExtension,
   presetName,
-  videoId,
   shouldMuteVideo = false,
-  quality = 101, // quality should be within 0-100, but if you supply out of bound value, backend will automatically select optimum quality
+  quality = 101,
   dimensions,
   fps,
   transformsHistory,
 }: {
-  videoPath: string
+  batchId: string
+  videos: { videoPath: string; videoId: string }[]
   convertToExtension?: string
   presetName?: string | null
-  videoId?: string | null
   shouldMuteVideo?: boolean
   quality?: number
   dimensions?: readonly [number, number]
   fps?: string
   transformsHistory?: VideoTransformsHistory[]
-}): Promise<CompressionResult> {
-  return core.invoke('compress_video', {
-    videoPath,
+}): Promise<BatchCompressionResult> {
+  return core.invoke('compress_videos_batch', {
+    batchId,
+    videos,
     convertToExtension: convertToExtension ?? 'mp4',
     presetName,
-    videoId,
     shouldMuteVideo,
     quality,
     fps,

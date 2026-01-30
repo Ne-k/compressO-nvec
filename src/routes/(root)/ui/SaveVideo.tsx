@@ -1,5 +1,3 @@
-'use client'
-
 import { save } from '@tauri-apps/plugin-dialog'
 import React from 'react'
 import { snapshot, useSnapshot } from 'valtio'
@@ -9,43 +7,48 @@ import Icon from '@/components/Icon'
 import { toast } from '@/components/Toast'
 import Tooltip from '@/components/Tooltip'
 import { moveFile, showItemInFileManager } from '@/tauri/commands/fs'
-import { videoProxy } from '../-state'
+import { appProxy } from '../-state'
 
-function Success() {
+// TODO: Apply for each video
+function SaveVideo() {
   const {
-    state: { compressedVideo, isCompressionSuccessful, fileName },
-  } = useSnapshot(videoProxy)
+    state: { videos, isProcessCompleted },
+  } = useSnapshot(appProxy)
+  const video = videos.length > 0 ? videos[0] : null
+  const { compressedVideo, fileName } = video ?? {}
 
   const fileNameDisplay =
-    (isCompressionSuccessful ? compressedVideo?.fileNameToDisplay : fileName) ??
-    ''
+    (isProcessCompleted ? compressedVideo?.fileNameToDisplay : fileName) ?? ''
 
   const handleCompressedVideoSave = async () => {
-    try {
-      const pathToSave = await save({
-        title: 'Choose location to save the compressed video.',
-        defaultPath: `compressO-${fileNameDisplay}`,
-      })
-      if (pathToSave) {
-        videoProxy.state.compressedVideo = {
-          ...(snapshot(videoProxy).state.compressedVideo ?? {}),
-          isSaving: true,
+    if (appProxy.state.videos.length) {
+      try {
+        const pathToSave = await save({
+          title: 'Choose location to save the compressed video(s).',
+          defaultPath: `compressO-${fileNameDisplay}`,
+        })
+        if (pathToSave) {
+          // TODO: Apply for each video
+          appProxy.state.videos[0].compressedVideo = {
+            ...(snapshot(appProxy).state.videos[0].compressedVideo ?? {}),
+            isSaving: true,
+            isSaved: false,
+          }
+          await moveFile(compressedVideo?.pathRaw as string, pathToSave)
+          appProxy.state.videos[0].compressedVideo = {
+            ...(snapshot(appProxy).state.videos[0].compressedVideo ?? {}),
+            savedPath: pathToSave,
+            isSaving: false,
+            isSaved: true,
+          }
+        }
+      } catch (_) {
+        toast.error('Could not save video to the given path.')
+        appProxy.state.videos[0].compressedVideo = {
+          ...(snapshot(appProxy).state.videos[0].compressedVideo ?? {}),
+          isSaving: false,
           isSaved: false,
         }
-        await moveFile(compressedVideo?.pathRaw as string, pathToSave)
-        videoProxy.state.compressedVideo = {
-          ...(snapshot(videoProxy).state.compressedVideo ?? {}),
-          savedPath: pathToSave,
-          isSaving: false,
-          isSaved: true,
-        }
-      }
-    } catch (_) {
-      toast.error('Could not save video to the given path.')
-      videoProxy.state.compressedVideo = {
-        ...(snapshot(videoProxy).state.compressedVideo ?? {}),
-        isSaving: false,
-        isSaved: false,
       }
     }
   }
@@ -94,4 +97,4 @@ function Success() {
   )
 }
 
-export default React.memo(Success)
+export default React.memo(SaveVideo)

@@ -2,18 +2,21 @@ import { event } from '@tauri-apps/api'
 import { emitTo } from '@tauri-apps/api/event'
 import { AnimatePresence, motion } from 'framer-motion'
 import React from 'react'
-import { snapshot, useSnapshot } from 'valtio'
+import { useSnapshot } from 'valtio'
 
 import Button from '@/components/Button'
 import { toast } from '@/components/Toast'
 import { CustomEvents, VideoCompressionProgress } from '@/types/compression'
 import { convertDurationToMilliseconds } from '@/utils/string'
-import { videoProxy } from '../-state'
+import { appProxy } from '../-state'
 
+// TODO: Refactors
 function CancelCompression() {
   const {
-    state: { isCompressing, videoDurationMilliseconds, id: videoId },
-  } = useSnapshot(videoProxy)
+    state: { videos, isCompressing },
+  } = useSnapshot(appProxy)
+  const video = videos.length > 0 ? videos[0] : null
+  const { videoDurationMilliseconds, id: videoId } = video ?? {}
 
   const [confirmCancellation, setConfirmCancellation] = React.useState(false)
   const [isCancelling, setIsCancelling] = React.useState(false)
@@ -38,7 +41,7 @@ function CancelCompression() {
                   currentDurationInMilliseconds > 0 &&
                   videoDurationMilliseconds >= currentDurationInMilliseconds
                 ) {
-                  videoProxy.state.compressionProgress =
+                  appProxy.state.videos[0].compressionProgress =
                     (currentDurationInMilliseconds * 100) /
                     videoDurationMilliseconds
                 }
@@ -63,9 +66,10 @@ function CancelCompression() {
     try {
       setIsCancelling(true)
       await emitTo('main', CustomEvents.CancelInProgressCompression, {
-        videoId: snapshot(videoProxy).state.id,
+        videoId: appProxy.state.videos[0].id,
+        batchId: appProxy.state.batchId,
       })
-      videoProxy.timeTravel('beforeCompressionStarted')
+      appProxy.timeTravel('beforeCompressionStarted')
     } catch {
       toast.error('Cannot cancel compression at this point.')
     }

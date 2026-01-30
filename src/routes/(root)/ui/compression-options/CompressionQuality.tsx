@@ -5,16 +5,15 @@ import { snapshot, useSnapshot } from 'valtio'
 import Slider from '@/components/Slider/Slider'
 import Switch from '@/components/Switch'
 import { slideDownTransition } from '@/utils/animation'
-import { videoProxy } from '../-state'
+import { appProxy } from '../../-state'
 
 function CompressionQuality() {
   const {
-    state: {
-      isCompressing,
-      isCompressionSuccessful,
-      config: { quality: compressionQuality, shouldEnableQuality },
-    },
-  } = useSnapshot(videoProxy)
+    state: { isCompressing, isProcessCompleted, videos },
+  } = useSnapshot(appProxy)
+  const video = videos.length > 0 ? videos[0] : null
+  const { config } = video ?? {}
+  const { quality: compressionQuality, shouldEnableQuality } = config ?? {}
 
   const [quality, setQuality] = React.useState<number>(
     compressionQuality ?? 100,
@@ -27,13 +26,17 @@ function CompressionQuality() {
   }, [quality])
 
   React.useEffect(() => {
-    if (quality !== snapshot(videoProxy)?.state?.config?.quality) {
+    const appSnapshot = snapshot(appProxy)
+    if (
+      appSnapshot.state.videos.length &&
+      quality !== appSnapshot.state.videos[0]?.config?.quality
+    ) {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current)
       }
       debounceRef.current = setTimeout(() => {
-        if (videoProxy.state.config) {
-          videoProxy.state.config.quality = quality
+        if (appProxy.state.videos[0].config) {
+          appProxy.state.videos[0].config.quality = quality
         }
       }, 500)
     }
@@ -63,9 +66,12 @@ function CompressionQuality() {
       <Switch
         isSelected={shouldEnableQuality}
         onValueChange={() => {
-          videoProxy.state.config.shouldEnableQuality = !shouldEnableQuality
+          if (appProxy.state.videos.length) {
+            appProxy.state.videos[0].config.shouldEnableQuality =
+              !shouldEnableQuality
+          }
         }}
-        isDisabled={isCompressing || isCompressionSuccessful}
+        isDisabled={videos.length === 0 || isCompressing || isProcessCompleted}
       >
         <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full">
           Quality
@@ -110,7 +116,7 @@ function CompressionQuality() {
               value={quality}
               onChange={handleQualityChange}
               isDisabled={
-                isCompressing || isCompressionSuccessful || !shouldEnableQuality
+                isCompressing || isProcessCompleted || !shouldEnableQuality
               }
             />
           </motion.div>
