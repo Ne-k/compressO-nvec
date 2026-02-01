@@ -9,8 +9,9 @@ import Icon from '@/components/Icon'
 import Image from '@/components/Image'
 import Progress, { CircularProgress } from '@/components/Progress'
 import ScrollShadow from '@/components/ScrollShadow'
+import { toast } from '@/components/Toast'
 import Tooltip from '@/components/Tooltip'
-import { showItemInFileManager } from '@/tauri/commands/fs'
+import { copyFileToClipboard, showItemInFileManager } from '@/tauri/commands/fs'
 import { zoomInStaggerAnimation } from '@/utils/animation'
 import { formatBytes } from '@/utils/fs'
 import { cn } from '@/utils/tailwind'
@@ -99,6 +100,13 @@ function PreviewBatchVideos() {
     } catch {}
   }, [])
 
+  const handleCopyToClipboard = useCallback(async (savedPath: string) => {
+    try {
+      await copyFileToClipboard(savedPath)
+      toast.success('Copied to clipboard.')
+    } catch {}
+  }, [])
+
   return (
     <>
       <ScrollShadow
@@ -162,7 +170,7 @@ function PreviewBatchVideos() {
                       {video.isProcessCompleted &&
                       video?.compressedVideo?.isSaved &&
                       video?.compressedVideo?.savedPath ? (
-                        <div className="absolute top-2 left-2 z-10 ">
+                        <div className="absolute top-2 left-2 z-10 flex gap-2">
                           <Tooltip
                             content="Show in File Explorer"
                             aria-label="Show in File Explorer"
@@ -178,6 +186,30 @@ function PreviewBatchVideos() {
                               className="p-2 rounded-full text-white"
                             >
                               <Icon name="fileExplorer" size={20} />
+                            </Button>
+                          </Tooltip>
+                        </div>
+                      ) : null}
+                      {!isCompressing &&
+                      video?.isProcessCompleted &&
+                      video?.compressedVideo?.isSuccessful ? (
+                        <div className="absolute top-2 left-2 z-10 flex gap-2">
+                          <Tooltip
+                            content="Copy to clipboard"
+                            aria-label="Copy to clipboard"
+                          >
+                            <Button
+                              size="sm"
+                              isIconOnly
+                              onPress={() =>
+                                handleCopyToClipboard(
+                                  (video?.compressedVideo?.savedPath ??
+                                    video?.compressedVideo?.pathRaw) as string,
+                                )
+                              }
+                              className="rounded-full text-white"
+                            >
+                              <Icon name="copy" size={28} />
                             </Button>
                           </Tooltip>
                         </div>

@@ -1,11 +1,11 @@
 import { useDisclosure } from '@heroui/modal'
 import { UseDisclosureProps } from '@heroui/react'
-import { AnimatePresence, motion } from 'framer-motion'
-import React, { useState } from 'react'
+import React from 'react'
 import { snapshot, useSnapshot } from 'valtio'
 
 import Button from '@/components/Button'
 import Icon from '@/components/Icon'
+import Tooltip from '@/components/Tooltip'
 import { deleteFile } from '@/tauri/commands/fs'
 import AlertDialog, { AlertDialogButton } from '@/ui/Dialogs/AlertDialog'
 import { appProxy } from '../-state'
@@ -15,9 +15,6 @@ function CompressionActions() {
     state: { videos, isProcessCompleted, isLoadingFiles, isSaving },
     resetProxy,
   } = useSnapshot(appProxy)
-
-  const [isCloseHovered, setIsCloseHovered] = useState(false)
-  const [isRedoHovered, setIsRedoHovered] = useState(false)
 
   const alertDiscloser = useDisclosure()
 
@@ -57,62 +54,35 @@ function CompressionActions() {
 
   return videos.length && !isLoadingFiles ? (
     <>
-      <div className="mx-auto w-fit flex justify-center items-center gap-2 z-[10]">
+      <div className="w-fit flex justify-center items-center z-[10]">
         {isProcessCompleted ? (
-          <AnimatePresence mode="wait">
+          <Tooltip content="Reset" aria-label="Reset">
             <Button
               size="sm"
               onPress={handleReconfigure}
               variant="light"
               radius="full"
-              className="gap-1 w-fit min-w-0"
-              onMouseEnter={() => setIsRedoHovered(true)}
-              onMouseLeave={() => setIsRedoHovered(false)}
-              isIconOnly={!isRedoHovered}
+              className="gap-1"
               isDisabled={isSaving}
+              isIconOnly
             >
               <Icon name="redo" size={22} />{' '}
-              <motion.span
-                initial={{ maxWidth: 0, opacity: 0 }}
-                animate={{
-                  maxWidth: isRedoHovered ? 80 : 0,
-                  opacity: isRedoHovered ? 1 : 0,
-                }}
-                exit={{ maxWidth: 0, opacity: 0 }}
-                className="overflow-hidden whitespace-nowrap"
-                transition={{ duration: 0.5 }}
-              >
-                Redo
-              </motion.span>
             </Button>
-          </AnimatePresence>
+          </Tooltip>
         ) : null}
-        <AnimatePresence mode="wait">
+        <Tooltip content="Exit" aria-label="Exit">
           <Button
             size="sm"
             onPress={handleCancelCompression}
             variant={'light'}
             radius="full"
-            className="gap-1 w-fit min-w-0"
-            onMouseEnter={() => setIsCloseHovered(true)}
-            onMouseLeave={() => setIsCloseHovered(false)}
+            className="gap-1"
             isDisabled={isSaving}
+            isIconOnly
           >
             <Icon name="cross" size={22} />
-            <motion.span
-              initial={{ maxWidth: 0, opacity: 0 }}
-              animate={{
-                maxWidth: isCloseHovered ? 80 : 0,
-                opacity: isCloseHovered ? 1 : 0,
-              }}
-              exit={{ maxWidth: 0, opacity: 0 }}
-              className="overflow-hidden whitespace-nowrap"
-              transition={{ duration: 0.4 }}
-            >
-              Close
-            </motion.span>
           </Button>
-        </AnimatePresence>
+        </Tooltip>
       </div>
       <AlertDialog
         title={`Video${videos.length > 1 ? 's' : ''} not saved`}

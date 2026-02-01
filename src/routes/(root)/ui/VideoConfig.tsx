@@ -13,8 +13,9 @@ import { CompressionResult } from '@/types/compression'
 import { zoomInTransition } from '@/utils/animation'
 import { formatBytes } from '@/utils/fs'
 import { cn } from '@/utils/tailwind'
-import { appProxy } from '../-state'
 import CancelCompression from './CancelCompression'
+import CompressionActions from './CompressionActions'
+import CompressionProgress from './CompressionProgress'
 import CompressionPreset from './compression-options/CompressionPreset'
 import CompressionQuality from './compression-options/CompressionQuality'
 import MuteAudio from './compression-options/MuteAudio'
@@ -22,12 +23,11 @@ import TransformVideo from './compression-options/TransformVideo'
 import VideoDimensions from './compression-options/VideoDimensions'
 import VideoExtension from './compression-options/VideoExtension'
 import VideoFPS from './compression-options/VideoFPS'
-import CompressionActions from './CompressionActions'
-import CompressionProgress from './CompressionProgress'
 import PreviewBatchVideos from './PreviewBatchVideos'
 import PreviewSingleVideo from './PreviewSingleVideo'
 import SaveVideo from './SaveVideo'
 import styles from './styles.module.css'
+import { appProxy } from '../-state'
 
 function VideoConfig() {
   const {
@@ -144,11 +144,6 @@ function VideoConfig() {
                 : '',
             )}
           >
-            {!isCompressing ? (
-              <div className="absolute -top-4 right-4">
-                <CompressionActions />
-              </div>
-            ) : null}
             {videos.length > 1 ? (
               <PreviewBatchVideos />
             ) : (
@@ -165,7 +160,10 @@ function VideoConfig() {
           className="p-4 rounded-xl border-2 border-zinc-200 dark:border-zinc-800"
           {...zoomInTransition}
         >
-          <p className="text-xl mb-6 font-bold">Output Settings</p>
+          <div className="flex items-center justify-between w-full">
+            <p className="text-xl font-bold">Output Settings</p>
+            {!isCompressing ? <CompressionActions /> : null}
+          </div>
           <>
             <CompressionPreset />
             <Divider className="my-3" />

@@ -6,13 +6,18 @@ import Button from '@/components/Button'
 import Icon from '@/components/Icon'
 import { toast } from '@/components/Toast'
 import Tooltip from '@/components/Tooltip'
-import { moveFile, showItemInFileManager } from '@/tauri/commands/fs'
+import {
+  copyFileToClipboard,
+  moveFile,
+  showItemInFileManager,
+} from '@/tauri/commands/fs'
 import { appProxy } from '../-state'
 
 function SaveVideo() {
   const {
-    state: { videos, isSaving, isSaved },
+    state: { videos, isSaving, isSaved, isCompressing },
   } = useSnapshot(appProxy)
+  const singleVideo = videos.length === 1 ? videos[0] : null
 
   const handleCompressedVideoSave = useCallback(async () => {
     if (appProxy.state.videos.length) {
@@ -113,6 +118,23 @@ function SaveVideo() {
     } catch {}
   }
 
+  const copyToClipboard = async () => {
+    const { videos } = appProxy.state
+    const singleVideo = videos.length > 0 ? videos[0] : null
+    const { compressedVideo } = singleVideo ?? {}
+
+    const savedPath =
+      appProxy.state.savedPath ??
+      compressedVideo?.savedPath ??
+      compressedVideo?.pathRaw
+    if (!savedPath) return
+
+    try {
+      await copyFileToClipboard(savedPath)
+      toast.success('Copied to clipboard.')
+    } catch {}
+  }
+
   return (
     <div className="flex items-center">
       <Button
@@ -133,16 +155,31 @@ function SaveVideo() {
         ) : null}
       </Button>
       {isSaved ? (
-        <Tooltip
-          content="Show in File Explorer"
-          aria-label="Show in File Explorer"
-        >
+        <>
+          <Tooltip
+            content="Show in File Explorer"
+            aria-label="Show in File Explorer"
+          >
+            <Button
+              isIconOnly
+              className="ml-2 text-green-500"
+              onPress={openInFileManager}
+            >
+              <Icon name="fileExplorer" />
+            </Button>
+          </Tooltip>
+        </>
+      ) : null}
+      {!isCompressing &&
+      singleVideo?.isProcessCompleted &&
+      singleVideo?.compressedVideo?.isSuccessful ? (
+        <Tooltip content="Copy to clipboard" aria-label="Copy to clipboard">
           <Button
             isIconOnly
             className="ml-2 text-green-500"
-            onPress={openInFileManager}
+            onPress={copyToClipboard}
           >
-            <Icon name="fileExplorer" />
+            <Icon name="copy" size={28} />
           </Button>
         </Tooltip>
       ) : null}

@@ -1,5 +1,6 @@
 import React from 'react'
 
+import Copy from '@/assets/icons/copy.svg?react'
 import Cross from '@/assets/icons/cross.svg?react'
 import CurvedArrow from '@/assets/icons/curved-arrow.svg?react'
 import DragAndDrop from '@/assets/icons/drag-and-drop.svg?react'
@@ -41,6 +42,7 @@ const registry = asRegistry({
   sun: Sun,
   videoFile: VideoFile,
   star: Star,
+  copy: Copy,
   cross: Cross,
   curvedArrow: CurvedArrow,
   save: Save,

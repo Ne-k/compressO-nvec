@@ -13,9 +13,10 @@ use lib::tauri_commands::{
     },
     file_manager::{__cmd__show_item_in_file_manager, show_item_in_file_manager},
     fs::{
-        __cmd__delete_cache, __cmd__delete_file, __cmd__get_file_metadata,
-        __cmd__get_image_dimension, __cmd__move_file, delete_cache, delete_file, get_file_metadata,
-        get_image_dimension, move_file,
+        __cmd__copy_file_to_clipboard, __cmd__delete_cache, __cmd__delete_file,
+        __cmd__get_file_metadata, __cmd__get_image_dimension, __cmd__move_file,
+        copy_file_to_clipboard, delete_cache, delete_file, get_file_metadata, get_image_dimension,
+        move_file,
     },
 };
 
@@ -63,7 +64,8 @@ async fn main() {
             move_file,
             delete_file,
             delete_cache,
-            show_item_in_file_manager
+            show_item_in_file_manager,
+            copy_file_to_clipboard
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

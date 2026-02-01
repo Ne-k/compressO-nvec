@@ -1,3 +1,6 @@
+use clipboard_rs::{Clipboard, ClipboardContext};
+use tauri::Manager;
+
 use crate::{domain::FileMetadata, ffmpeg, fs};
 
 #[tauri::command]
@@ -37,5 +40,13 @@ pub async fn delete_cache(app: tauri::AppHandle) -> Result<(), String> {
     if let Err(err) = fs::delete_stale_files(&ffmpeg.get_asset_dir(), 0).await {
         return Err(err.to_string());
     }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn copy_file_to_clipboard(app: tauri::AppHandle, file_path: &str) -> Result<(), String> {
+    let ctx = ClipboardContext::new().map_err(|err| err.to_string())?;
+    ctx.set_files(vec![file_path.to_owned()])
+        .map_err(|err| err.to_string())?;
     Ok(())
 }
