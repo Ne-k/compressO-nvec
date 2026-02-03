@@ -1,12 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import React, { useCallback } from 'react'
+import React from 'react'
 import { useSnapshot } from 'valtio'
 
-import Button from '@/components/Button'
 import Layout from '@/components/Layout'
 import { zoomInTransition } from '@/utils/animation'
 import { cn } from '@/utils/tailwind'
 import CompressionProgress from './CompressionProgress'
+import CustomizeVideoOnBatchActions from './CustomizeVideoOnBatchActions'
 import OutputSettings from './output-settings/-index'
 import PreviewBatchVideos from './PreviewBatchVideos'
 import PreviewSingleVideo from './PreviewSingleVideo'
@@ -17,28 +17,6 @@ function VideoConfig() {
   const {
     state: { videos, isCompressing, selectedVideoIndexForCustomization },
   } = useSnapshot(appProxy)
-
-  const handleApplyVideoConfig = useCallback(() => {
-    const selectedVideoIndexForCustomization =
-      appProxy.state.selectedVideoIndexForCustomization
-    if (selectedVideoIndexForCustomization >= 0) {
-      appProxy.state.selectedVideoIndexForCustomization = -1
-
-      if (
-        appProxy.state.videos[selectedVideoIndexForCustomization]?.config
-          ?.shouldTransformVideo &&
-        appProxy.state.videos[selectedVideoIndexForCustomization].config
-          ?.transformVideoConfig?.previewUrl
-      ) {
-        appProxy.state.videos[
-          selectedVideoIndexForCustomization
-        ].thumbnailPath =
-          appProxy.state.videos[
-            selectedVideoIndexForCustomization
-          ]?.config?.transformVideoConfig?.previewUrl
-      }
-    }
-  }, [])
 
   return (
     <Layout
@@ -61,25 +39,7 @@ function VideoConfig() {
               <>
                 <PreviewBatchVideos />
                 {selectedVideoIndexForCustomization > -1 ? (
-                  <>
-                    <div className="absolute top-0 right-0 bottom-0 left-0 w-full h-full z-[10] flex flex-col justify-center items-center bg-white1 dark:bg-black1">
-                      <motion.div
-                        className="flex flex-col justify-center items-center"
-                        {...zoomInTransition}
-                      >
-                        <PreviewSingleVideo
-                          videoIndex={selectedVideoIndexForCustomization}
-                        />
-                      </motion.div>
-                      <Button
-                        size="sm"
-                        className="absolute top-4 right-4"
-                        onPress={handleApplyVideoConfig}
-                      >
-                        Apply
-                      </Button>
-                    </div>
-                  </>
+                  <CustomizeVideoOnBatchActions />
                 ) : null}
               </>
             ) : (

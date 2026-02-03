@@ -9,9 +9,11 @@ import {
 import { FileMetadata } from '@/types/fs'
 
 export function compressVideos(
+  batchId: string,
   videos: VideoCompressionConfig[],
 ): Promise<BatchCompressionResult> {
   return core.invoke('compress_videos_batch', {
+    batchId,
     videos,
   })
 }

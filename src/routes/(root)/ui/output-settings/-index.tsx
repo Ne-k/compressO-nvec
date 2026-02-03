@@ -67,9 +67,9 @@ function OutputSettings({ videoIndex }: OutputSettingsProps) {
       appProxy.state.batchId = batchId
 
       const { results } = await compressVideos(
+        batchId,
         appSnapshot.state.videos.map((v) => ({
           videoId: v.id!,
-          batchId: batchId,
           videoPath: v.pathRaw!,
           convertToExtension: v.config?.convertToExtension ?? 'mp4',
           presetName: !v.config?.shouldDisableCompression
@@ -79,9 +79,13 @@ function OutputSettings({ videoIndex }: OutputSettingsProps) {
           quality: v.config?.shouldEnableQuality
             ? (v.config?.quality as number)
             : 101,
-          dimensions: v.config?.shouldEnableCustomDimensions
-            ? (v.config.customDimensions as [number, number])
-            : null,
+          dimensions:
+            v.config?.shouldEnableCustomDimensions && v.config.customDimensions
+              ? ([
+                  Math.round(v.config.customDimensions[0]),
+                  Math.round(v.config.customDimensions[1]),
+                ] as [number, number])
+              : null,
           fps: v.config?.shouldEnableCustomFPS
             ? v.config.customFPS?.toString?.()
             : null,

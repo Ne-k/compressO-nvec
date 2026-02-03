@@ -61,6 +61,8 @@ function VideoFPS({ videoIndex }: VideoFPSProps) {
   const shouldDisableInput =
     videos.length === 0 || isCompressing || isProcessCompleted || isLoadingFiles
 
+  const initialFpsValue = customFPS ?? fps ?? 30
+
   return (
     <>
       <Switch
@@ -79,9 +81,9 @@ function VideoFPS({ videoIndex }: VideoFPSProps) {
               fullWidth
               label="Frames Per Second:"
               className="block flex-shrink-0 rounded-2xl !mt-8"
-              selectedKeys={[String(customFPS ?? fps)!]}
+              selectedKeys={[String(initialFpsValue)!]}
               size="sm"
-              value={String(customFPS ?? fps)}
+              value={String(initialFpsValue)}
               onChange={(evt) => {
                 const value = evt?.target?.value
                 if (value && !Number.isNaN(+value)) {

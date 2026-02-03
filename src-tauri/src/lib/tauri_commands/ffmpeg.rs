@@ -68,6 +68,7 @@ pub async fn get_video_info(app: tauri::AppHandle, video_path: &str) -> Result<V
 #[tauri::command]
 pub async fn compress_videos_batch(
     app: tauri::AppHandle,
+    batch_id: &str,
     videos: Vec<VideoCompressionConfig>,
 ) -> Result<BatchCompressionResult, String> {
     let mut ffmpeg = ffmpeg::FFMPEG::new(&app)?;
@@ -80,7 +81,7 @@ pub async fn compress_videos_batch(
         )
     };
     ffmpeg
-        .compress_videos_batch(videos)
+        .compress_videos_batch(batch_id, videos)
         .await
         .map(|result| Ok(result))
         .unwrap_or_else(|err| Err(err))

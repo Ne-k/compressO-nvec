@@ -415,6 +415,7 @@ impl FFMPEG {
     /// Compressed videos in batch
     pub async fn compress_videos_batch(
         &mut self,
+        batch_id: &str,
         videos: Vec<VideoCompressionConfig>,
     ) -> Result<BatchCompressionResult, String> {
         let mut results: std::collections::HashMap<String, CompressionResult> =
@@ -424,7 +425,6 @@ impl FFMPEG {
         for (index, video_options) in videos.iter().enumerate() {
             let video_path = &video_options.video_path;
             let video_id = &video_options.video_id;
-            let batch_id = video_options.batch_id.as_deref().unwrap_or("");
 
             let app_clone = self.app.clone();
             let batch_id_clone = batch_id.to_string();
@@ -466,7 +466,7 @@ impl FFMPEG {
 
             let convert_to_extension = &video_options.convert_to_extension;
             let preset_name = video_options.preset_name.as_deref();
-            let batch_id_for_compression = video_options.batch_id.as_deref();
+            let batch_id_for_compression = batch_id.clone();
             let should_mute_video = video_options.should_mute_video;
             let quality = video_options.quality;
             let dimensions = video_options.dimensions;
@@ -482,7 +482,7 @@ impl FFMPEG {
                     convert_to_extension,
                     preset_name,
                     video_id,
-                    batch_id_for_compression,
+                    Some(batch_id_for_compression),
                     should_mute_video,
                     quality,
                     dimensions,

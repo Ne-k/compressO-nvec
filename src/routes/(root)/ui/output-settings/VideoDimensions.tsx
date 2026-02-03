@@ -18,32 +18,41 @@ function VideoDimensions({ videoIndex }: VideoDimensionsProps) {
     state: { videos, isCompressing, isProcessCompleted, isLoadingFiles },
   } = useSnapshot(appProxy)
   const video = videos.length > 0 ? videos[videoIndex] : null
-  const { config, dimensions: videoOriginalDimensions } = video ?? {}
+  const { config } = video ?? {}
   const {
     shouldEnableCustomDimensions,
     shouldTransformVideo,
     transformVideoConfig,
   } = config ?? {}
 
-  const videoDimensions = useMemo(
-    () =>
-      shouldTransformVideo
+  const videoDimensions = useMemo(() => {
+    const video = appProxy.state.videos[videoIndex]
+    const videoConfig = appProxy.state.videos[videoIndex]?.config
+    const videoOriginalDimensions = video?.dimensions
+
+    return shouldTransformVideo
+      ? {
+          width:
+            transformVideoConfig?.transforms?.crop?.width ??
+            videoOriginalDimensions?.width,
+          height:
+            transformVideoConfig?.transforms?.crop?.height ??
+            videoOriginalDimensions?.height,
+        }
+      : videoConfig?.shouldEnableCustomDimensions &&
+          videoConfig?.customDimensions?.[0] &&
+          videoConfig?.customDimensions?.[1]
         ? {
-            width:
-              transformVideoConfig?.transforms?.crop?.width ??
-              videoOriginalDimensions?.width,
-            height:
-              transformVideoConfig?.transforms?.crop?.height ??
-              videoOriginalDimensions?.height,
+            width: videoConfig.customDimensions[0],
+            height: videoConfig.customDimensions[1],
           }
-        : videoOriginalDimensions,
-    [
-      shouldTransformVideo,
-      transformVideoConfig?.transforms?.crop?.height,
-      transformVideoConfig?.transforms?.crop?.width,
-      videoOriginalDimensions,
-    ],
-  )
+        : videoOriginalDimensions
+  }, [
+    shouldTransformVideo,
+    transformVideoConfig?.transforms?.crop?.height,
+    transformVideoConfig?.transforms?.crop?.width,
+    videoIndex,
+  ])
 
   const [dimensions, setDimensions] = React.useState({
     width: videoDimensions?.width ?? 0,
@@ -92,7 +101,6 @@ function VideoDimensions({ videoIndex }: VideoDimensionsProps) {
 
   const handleChange = (value: number, type: 'width' | 'height') => {
     if (
-      appProxy.state.videos.length !== 1 ||
       !value ||
       value <= 0 ||
       videoDimensions == null ||

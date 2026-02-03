@@ -137,11 +137,10 @@ pub struct VideoWithPath {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct VideoCompressionConfig {
+    pub video_id: String,
     pub video_path: String,
     pub convert_to_extension: String,
     pub preset_name: Option<String>,
-    pub video_id: String,
-    pub batch_id: Option<String>,
     pub should_mute_video: bool,
     pub quality: u16,
     pub dimensions: Option<(u32, u32)>,
