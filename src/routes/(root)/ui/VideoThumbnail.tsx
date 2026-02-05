@@ -1,6 +1,7 @@
 import { useSnapshot } from 'valtio'
 
 import Image from '@/components/Image'
+import VideoPlayer from '@/components/VideoPlayer'
 import VideoTransformer from './VideoTransformer'
 import { appProxy } from '../-state'
 
@@ -15,11 +16,16 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
     state: { videos },
   } = useSnapshot(appProxy)
   const video = videos.length > 0 ? videos[videoIndex] : null
-  const { config, thumbnailPath, isProcessCompleted } = video ?? {}
+  const { config, path, thumbnailPath, isProcessCompleted } = video ?? {}
   const { shouldTransformVideo } = config ?? {}
 
   return shouldTransformVideo && !isProcessCompleted ? (
     <VideoTransformer videoIndex={videoIndex} />
+  ) : path ? (
+    <VideoPlayer
+      url={path}
+      className="max-w-[65vw] xxl:max-w-[75vw] max-h-[60vh]"
+    />
   ) : (
     <Image
       alt="video to compress"
