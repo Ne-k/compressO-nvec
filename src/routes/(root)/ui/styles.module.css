@@ -1,6 +1,6 @@
 .videoConfigContainer {
   display: grid;
-  grid-template-columns: 1fr minmax(18rem, auto);
+  grid-template-columns: 1fr 20rem;
   gap: 1rem;
 }
 
@@ -35,6 +35,6 @@
     margin: 0 0.8rem;
   }
   .videoConfigContainer {
-    grid-template-columns: 1fr minmax(22rem, auto);
+    grid-template-columns: 1fr 22rem;
   }
 }

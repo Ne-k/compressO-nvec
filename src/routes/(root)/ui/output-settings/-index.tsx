@@ -1,4 +1,4 @@
-import { Divider } from '@heroui/react'
+import { Divider, ScrollShadow } from '@heroui/react'
 import { Tab } from '@heroui/tabs'
 import { core } from '@tauri-apps/api'
 import { motion } from 'framer-motion'
@@ -210,7 +210,10 @@ function OutputSettings({ videoIndex }: OutputSettingsProps) {
             <Tab key={t.id} value={t.id} title={t.title} />
           ))}
         </Tabs>
-        <div className="my-6">
+        <ScrollShadow
+          className="max-h-[70vh] hxl:max-h-[80vh] my-6"
+          hideScrollBar
+        >
           {tab === 'video' ? (
             <div>
               <>
@@ -253,7 +256,7 @@ function OutputSettings({ videoIndex }: OutputSettingsProps) {
               <Metadata videoIndex={videoIndex} />
             </>
           ) : null}
-        </div>
+        </ScrollShadow>
       </section>
 
       {selectedVideoIndexForCustomization < 0 ? (

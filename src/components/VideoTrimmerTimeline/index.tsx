@@ -70,6 +70,7 @@ const getDefaultEditorData = ({
 export const scales = {
   scale: 1,
   scaleWidth: 50,
+  startLeft: 20,
 } as const
 
 export const TrimRow: FC<{
@@ -134,6 +135,7 @@ const VideoTrimmerTimeline = forwardRef(
         autoScroll
         scaleWidth={scales.scaleWidth}
         scale={scales.scale}
+        startLeft={scales.startLeft}
         style={{
           width: '100%',
           height: '125px',

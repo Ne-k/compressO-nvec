@@ -110,7 +110,7 @@ function PreviewBatchVideos() {
   return (
     <>
       <ScrollShadow
-        className="h-[80vh] overflow-hidden overflow-y-auto"
+        className="h-[75vh] hlg:h-[80vh] overflow-hidden overflow-y-auto"
         hideScrollBar
       >
         <AnimatePresence mode="wait">
@@ -155,7 +155,7 @@ function PreviewBatchVideos() {
                         <Image
                           src={video.thumbnailPath as string}
                           alt={video.fileName ?? ''}
-                          className="w-full max-w-[unset] h-[220px] object-cover drop-shadow-xl rounded-lg"
+                          className="w-full max-w-[unset] h-[180px] hlg:h-[220px] object-cover drop-shadow-xl rounded-lg"
                           removeWrapper
                         />
                       ) : (
@@ -319,7 +319,7 @@ function PreviewBatchVideos() {
                           </section>
                         ) : (
                           <>
-                            <div>
+                            <div className="text-[11px] xl:text-[12px] xxl:text-[12px] 3xl:text-[12.5px]">
                               <p className="italic text-gray-600 dark:text-gray-400 mb-1">
                                 Size
                               </p>
@@ -328,7 +328,7 @@ function PreviewBatchVideos() {
                               </span>
                             </div>{' '}
                             <Divider orientation="vertical" className="h-5" />
-                            <div>
+                            <div className="text-[11px] xxl:text-[12px] 3xl:text-[12.5px]">
                               <p className="italic text-gray-600 dark:text-gray-400 mb-1">
                                 Extension
                               </p>
@@ -342,7 +342,7 @@ function PreviewBatchVideos() {
                                   orientation="vertical"
                                   className="h-5"
                                 />
-                                <div>
+                                <div className="text-[11px] xxl:text-[12px] 3xl:text-[12.5px]">
                                   <p className="italic text-gray-600 dark:text-gray-400 mb-1">
                                     Duration
                                   </p>
@@ -358,7 +358,7 @@ function PreviewBatchVideos() {
                                   orientation="vertical"
                                   className="h-5"
                                 />
-                                <div>
+                                <div className="text-[11px] xxl:text-[12px] 3xl:text-[12.5px]">
                                   <p className="italic text-gray-600 dark:text-gray-400 mb-1">
                                     Dimensions
                                   </p>
@@ -366,24 +366,6 @@ function PreviewBatchVideos() {
                                     {video.dimensions.width ?? '-'} x{' '}
                                     {video.dimensions.height ?? '-'}
                                   </span>
-                                </div>
-                              </>
-                            ) : null}
-                            {video.fps ? (
-                              <>
-                                <Divider
-                                  orientation="vertical"
-                                  className="h-5"
-                                />
-                                <div>
-                                  <div>
-                                    <p className="italic text-gray-600 dark:text-gray-400 mb-1">
-                                      FPS
-                                    </p>
-                                    <span className="block font-black">
-                                      {video.fps ?? '-'}
-                                    </span>
-                                  </div>
                                 </div>
                               </>
                             ) : null}

@@ -92,11 +92,13 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
     }
   }, [videoIndex])
 
-  const seekPlayerTo = useCallback((time: number) => {
+  const seekPlayerTo = useCallback((time: number, onPausedOnly = true) => {
     if (playerRef.current?.playerRef) {
       const playbackState = playerRef.current.getPlaybackState()
-      if (playbackState === 'paused') {
-        playerRef.current.playerRef.seekTo(time)
+      if (onPausedOnly) {
+        playbackState === 'paused' && playerRef.current.playerRef.seekTo(time)
+      } else {
+        playerRef.current.playerRef.seekTo(time, 'seconds')
       }
     }
   }, [])
@@ -219,11 +221,11 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
               }}
               onCursorDrag={seekPlayerTo}
               onClickTimeArea={(time) => {
-                seekPlayerTo(time)
+                seekPlayerTo(time, false)
                 return true
               }}
               onClickActionOnly={(_, { time }) => {
-                seekPlayerTo(time)
+                seekPlayerTo(time, false)
                 setTime(time)
               }}
             />

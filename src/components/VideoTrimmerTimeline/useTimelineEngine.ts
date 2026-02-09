@@ -53,7 +53,9 @@ function useTimelineEngine({
     const { width } = timelineState.current.target.getBoundingClientRect()
     const currentTime = timelineState.current.getTime()
     const left =
-      currentTime * (scales.scaleWidth / scales.scale) + 20 - width / 2
+      currentTime * (scales.scaleWidth / scales.scale) +
+      scales.startLeft -
+      width / 1.2
     timelineState.current.setScrollLeft(left)
   }
 
