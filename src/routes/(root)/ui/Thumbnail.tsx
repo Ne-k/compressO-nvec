@@ -12,7 +12,7 @@ import VideoTrimmerTimeline, {
   rowIds,
   scales,
   VideoTrimmerTimelineRef,
-} from '@/components/VideoTrimmerTimeline'
+} from '@/ui/VideoTrimmerTimeline'
 import { formatDuration } from '@/utils/string'
 import VideoTransformer from './VideoTransformer'
 import { appProxy } from '../-state'
@@ -49,50 +49,6 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
   const trimmerRef = useRef<VideoTrimmerTimelineRef | null>(null)
   const trimConfigSetDebounceRef = useRef<NodeJS.Timeout | null>(null)
 
-  useEffect(() => {
-    let unsubscribeTransform: (() => void) | undefined
-    let unsubscribeTrim: (() => void) | undefined
-
-    if (appProxy.state.videos[videoIndex]?.config) {
-      unsubscribeTransform = subscribeKey(
-        appProxy.state.videos[videoIndex].config,
-        'isVideoTransformEditMode',
-        async () => {
-          if (
-            playerRef.current &&
-            appProxy.state.videos[videoIndex].config.isVideoTransformEditMode
-          ) {
-            const videoSnapshot = appProxy.state.videos[videoIndex]
-            const originalThumbnail = core.convertFileSrc(
-              videoSnapshot.thumbnailPathRaw!,
-            )
-            const url = await playerRef.current.captureVideoFrame()
-            appProxy.state.videos[videoIndex].thumbnailPath =
-              url ?? originalThumbnail
-            playerRef.current.pauseVideo()
-          }
-        },
-      )
-
-      unsubscribeTrim = subscribeKey(
-        appProxy.state.videos[videoIndex].config,
-        'isVideoTrimEditMode',
-        async () => {
-          if (
-            playerRef.current &&
-            appProxy.state.videos[videoIndex].config.isVideoTrimEditMode
-          ) {
-            playerRef.current.pauseVideo()
-          }
-        },
-      )
-    }
-    return () => {
-      unsubscribeTransform?.()
-      unsubscribeTrim?.()
-    }
-  }, [videoIndex])
-
   const seekPlayerTo = useCallback((time: number, onPausedOnly = true) => {
     if (playerRef.current?.playerRef) {
       const playbackState = playerRef.current.getPlaybackState()
@@ -104,7 +60,11 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
     }
   }, [])
 
-  const { setTime, autoScrollCursor, refreshTimeline } = useTimelineEngine({
+  const {
+    setTime: setTimelineTime,
+    autoScrollCursorToCurrentTime,
+    refreshTimeline,
+  } = useTimelineEngine({
     timelineState: trimmerRef,
     totalDuration: (videoDurationMilliseconds ?? 0) / 1000,
     onPlay: () => {
@@ -118,6 +78,85 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
     },
     onSeek: seekPlayerTo,
   })
+
+  useEffect(() => {
+    let unsubscribeTransform: (() => void) | undefined
+
+    if (appProxy.state.videos[videoIndex]?.config) {
+      unsubscribeTransform = subscribeKey(
+        appProxy.state.videos[videoIndex].config,
+        'isVideoTransformEditMode',
+        async () => {
+          if (playerRef.current) {
+            if (
+              appProxy.state.videos[videoIndex].config.isVideoTransformEditMode
+            ) {
+              const videoSnapshot = appProxy.state.videos[videoIndex]
+              const originalThumbnail = core.convertFileSrc(
+                videoSnapshot.thumbnailPathRaw!,
+              )
+
+              playerRef.current.pauseVideo()
+
+              // Wait a bit for the pause to take effect and frame to stabilize
+              await new Promise((resolve) => setTimeout(resolve, 100))
+
+              let url: string | null = null
+              let attempts = 0
+              const maxAttempts = 3
+
+              while (!url && attempts < maxAttempts) {
+                url = await playerRef.current.captureVideoFrame()
+                if (!url) {
+                  attempts++
+                  if (attempts < maxAttempts) {
+                    await new Promise((resolve) => setTimeout(resolve, 100))
+                  }
+                }
+              }
+
+              appProxy.state.videos[videoIndex].thumbnailPath =
+                url ?? originalThumbnail
+            }
+          }
+        },
+      )
+    }
+    return () => {
+      unsubscribeTransform?.()
+    }
+  }, [videoIndex])
+
+  useEffect(() => {
+    let unsubscribeTrim: (() => void) | undefined
+
+    if (appProxy.state.videos[videoIndex]?.config) {
+      unsubscribeTrim = subscribeKey(
+        appProxy.state.videos[videoIndex].config,
+        'isVideoTrimEditMode',
+        async () => {
+          if (playerRef.current) {
+            setTimeout(() => {
+              if (playerRef?.current?.playerRef) {
+                const currentTime =
+                  playerRef?.current?.playerRef?.getCurrentTime?.()
+                if (currentTime) {
+                  setTimelineTime(currentTime)
+                  autoScrollCursorToCurrentTime(scales)
+                }
+              }
+            }, 100)
+            if (appProxy.state.videos[videoIndex].config.isVideoTrimEditMode) {
+              playerRef.current.pauseVideo()
+            }
+          }
+        },
+      )
+    }
+    return () => {
+      unsubscribeTrim?.()
+    }
+  }, [videoIndex, autoScrollCursorToCurrentTime, setTimelineTime])
 
   const showTrimmerLayout =
     shouldTrimVideo && isVideoTrimEditMode && !isProcessCompleted
@@ -166,8 +205,8 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
               if (playerRef.current?.playerRef) {
                 const internalPlayer = playerRef.current.getInternalPlayer()
                 if (internalPlayer && !internalPlayer.paused) {
-                  setTime(playedSeconds)
-                  autoScrollCursor(scales)
+                  setTimelineTime(playedSeconds)
+                  autoScrollCursorToCurrentTime(scales)
                 }
               }
             }}
@@ -218,7 +257,7 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
               }}
               onClickActionOnly={(_, { time }) => {
                 seekPlayerTo(time, false)
-                setTime(time)
+                setTimelineTime(time)
               }}
               onEditorDataChange={(data) => {
                 if (trimConfigSetDebounceRef.current) {

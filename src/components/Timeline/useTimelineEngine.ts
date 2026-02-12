@@ -51,7 +51,7 @@ function useTimelineEngine({
     }
   }, [timelineState.current])
 
-  const autoScrollCursor = (scales: TimelineScales) => {
+  const autoScrollCursorToCurrentTime = (scales: TimelineScales) => {
     if (!timelineState.current) return
 
     const { width } = timelineState.current.target.getBoundingClientRect()
@@ -109,7 +109,7 @@ function useTimelineEngine({
     seekLeftBy,
     seekRightBy,
     setTime,
-    autoScrollCursor,
+    autoScrollCursorToCurrentTime,
     refreshTimeline,
   }
 }

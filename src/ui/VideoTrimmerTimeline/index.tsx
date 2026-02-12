@@ -19,10 +19,11 @@ import {
   useState,
 } from 'react'
 
-import Button from '../Button'
-import Icon from '../Icon'
-import Popover from '../Popover'
-import { TimelineScales } from '../Timeline/useTimelineEngine'
+import Button from '../../components/Button'
+import Code from '../../components/Code'
+import Icon from '../../components/Icon'
+import Popover from '../../components/Popover'
+import { TimelineScales } from '../../components/Timeline/useTimelineEngine'
 
 export const rowIds = {
   videoBoundary: 'video-boundary',
@@ -301,6 +302,70 @@ const VideoTrimmerTimeline = forwardRef(
       [editorData, updateEditorDataWithConstraints],
     )
 
+    const handleInsertNewAction = useCallback(
+      (row: TimelineRow, time: number) => {
+        if (row.id !== rowIds.videoTrim) return
+
+        const clickedAction = row.actions.find(
+          (action) => time >= action.start && time <= action.end,
+        )
+        if (clickedAction) {
+          return
+        }
+
+        const defaultActionDuration = 1.0
+
+        const sortedActions = [...row.actions].sort((a, b) => a.start - b.start)
+
+        let leftBoundary = 0
+        let rightBoundary = duration
+
+        for (const action of sortedActions) {
+          if (action.end <= time) {
+            leftBoundary = action.end
+          } else if (action.start >= time) {
+            rightBoundary = action.start
+            break
+          }
+        }
+
+        // Check if there's at least 1 second of space available
+        const availableSpace = rightBoundary - leftBoundary
+        if (availableSpace < defaultActionDuration) {
+          return
+        }
+
+        let newActionStart = time - defaultActionDuration / 2
+        let newActionEnd = newActionStart + defaultActionDuration
+
+        if (newActionEnd > rightBoundary) {
+          newActionEnd = rightBoundary
+          newActionStart = rightBoundary - defaultActionDuration
+        }
+
+        if (newActionStart < leftBoundary) {
+          newActionStart = leftBoundary
+          newActionEnd = leftBoundary + defaultActionDuration
+        }
+        updateEditorDataWithConstraints((prevData) =>
+          prevData.map((r) => {
+            if (r.id === rowIds.videoTrim) {
+              const newAction: TimelineAction = {
+                id: generateActionId(),
+                start: newActionStart,
+                end: newActionEnd,
+                effectId: effects.effectVideoTrim.id,
+                movable: true,
+              }
+              return { ...r, actions: [...r.actions, newAction] }
+            }
+            return r
+          }),
+        )
+      },
+      [duration, updateEditorDataWithConstraints],
+    )
+
     useEffect(() => {
       function handleKeyDown(evt: KeyboardEvent) {
         if (evt.key == 'Backspace' || evt.key == 'Delete') {
@@ -354,9 +419,12 @@ const VideoTrimmerTimeline = forwardRef(
             }
           }}
           {...props}
+          onDoubleClickRow={(_, { row, time }) =>
+            handleInsertNewAction(row, time)
+          }
           onChange={(data) => {
-            updateEditorDataWithConstraints(data)
             onChange?.(data)
+            updateEditorDataWithConstraints(data)
           }}
         />
         {!areInstructionsHidden ? (
@@ -376,10 +444,14 @@ const VideoTrimmerTimeline = forwardRef(
                     - Double click on the action to split
                   </p>
                   <p className="text-xs">
-                    - Double click on a free area to add new action
+                    - Double click on a free area to add a new action
                   </p>
                   <p className="text-xs">
-                    - Select and press "Delete" to delete an action
+                    - Select and press{' '}
+                    <Code size="sm" className="text-xs py-0 px-1">
+                      Delete
+                    </Code>{' '}
+                    to delete an action
                   </p>
                   <Button
                     size="sm"

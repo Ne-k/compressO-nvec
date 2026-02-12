@@ -32,12 +32,12 @@ export interface VideoPlayerRef {
   pauseVideo: () => void
   getPlaybackState: () => 'playing' | 'paused'
   captureVideoFrame: () => Promise<string | null>
-  enableTimelinePlayer?: boolean
 }
 
 export interface VideoPlayerProps extends BaseReactPlayerProps {
   playPauseOnSpaceKeydown?: boolean
   containerClassName?: ClassNameValue
+  enableTimelinePlayer?: boolean
 }
 
 const scales: TimelineScales = {
@@ -90,22 +90,45 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
     const captureVideoFrame = useCallback(async () => {
       if (!playerRef.current) return null
 
-      const canvas = document.createElement('canvas')
+      const internalPlayer =
+        playerRef.current.getInternalPlayer() as HTMLVideoElement | null
+      if (!internalPlayer) return null
 
-      const internalPlayer = playerRef.current.getInternalPlayer()
+      if (
+        internalPlayer.videoWidth === 0 ||
+        internalPlayer.videoHeight === 0 ||
+        internalPlayer.readyState < 2
+      ) {
+        // Wait for the video to be ready
+        await new Promise<void>((resolve) => {
+          const checkReady = () => {
+            if (
+              internalPlayer.videoWidth > 0 &&
+              internalPlayer.videoHeight > 0 &&
+              internalPlayer.readyState >= 2
+            ) {
+              resolve()
+            } else {
+              internalPlayer.addEventListener('loadeddata', checkReady, {
+                once: true,
+              })
+            }
+          }
+          checkReady()
+        })
+      }
+
+      // Small delay to ensure frame is actually rendered
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      const canvas = document.createElement('canvas')
       canvas.width = internalPlayer.videoWidth
       canvas.height = internalPlayer.videoHeight
 
       const ctx = canvas.getContext('2d')
       if (!ctx) return null
 
-      ctx.drawImage(
-        playerRef.current.getInternalPlayer() as HTMLVideoElement,
-        0,
-        0,
-        canvas.width,
-        canvas.height,
-      )
+      ctx.drawImage(internalPlayer, 0, 0, canvas.width, canvas.height)
 
       const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, 'image/png'),
@@ -125,6 +148,43 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
 
       return videoFrameUrl
     }, [])
+
+    const {
+      refreshTimeline,
+      autoScrollCursorToCurrentTime,
+      setTime: setTimelineTime,
+    } = useTimelineEngine({
+      timelineState: timelinePlayerRef,
+      totalDuration: (duration ?? 0) / 1000,
+    })
+
+    useEffect(() => {
+      if (playPauseOnSpaceKeydown) {
+        window.addEventListener('keydown', handleKeyDown)
+      } else {
+        window.removeEventListener('keydown', handleKeyDown)
+      }
+      return () => {
+        window.removeEventListener('keydown', handleKeyDown)
+      }
+    }, [handleKeyDown, playPauseOnSpaceKeydown])
+
+    useEffect(() => {
+      if (playPauseButtonRef.current) {
+        playPauseButtonRef.current.focus()
+      }
+    }, [])
+
+    useEffect(() => {
+      if (
+        enableTimelinePlayer &&
+        timelinePlayerRef.current &&
+        playerRef.current
+      ) {
+        setTimelineTime(playerRef.current.getCurrentTime())
+        autoScrollCursorToCurrentTime(scales)
+      }
+    }, [enableTimelinePlayer, setTimelineTime, autoScrollCursorToCurrentTime])
 
     useImperativeHandle(
       forwardedRef,
@@ -148,28 +208,6 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
         }) satisfies VideoPlayerRef,
     )
 
-    useEffect(() => {
-      if (playPauseOnSpaceKeydown) {
-        window.addEventListener('keydown', handleKeyDown)
-      } else {
-        window.removeEventListener('keydown', handleKeyDown)
-      }
-      return () => {
-        window.removeEventListener('keydown', handleKeyDown)
-      }
-    }, [handleKeyDown, playPauseOnSpaceKeydown])
-
-    useEffect(() => {
-      if (playPauseButtonRef.current) {
-        playPauseButtonRef.current.focus()
-      }
-    }, [])
-
-    const { refreshTimeline, autoScrollCursor } = useTimelineEngine({
-      timelineState: timelinePlayerRef,
-      totalDuration: (duration ?? 0) / 1000,
-    })
-
     return (
       <div className={cn('w-full h-full', containerClassName)}>
         <div
@@ -190,7 +228,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
               onProgress?.(progress)
               if (timelinePlayerRef.current) {
                 timelinePlayerRef.current.setTime(progress.playedSeconds)
-                autoScrollCursor(scales)
+                autoScrollCursorToCurrentTime(scales)
               }
             }}
             onDuration={(duration) => {

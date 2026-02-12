@@ -167,25 +167,37 @@ impl FFMPEG {
 
         // Dimensions
         let padding = "pad=ceil(iw/2)*2:ceil(ih/2)*2";
-        let pad_filter = if let Some((width, height)) = dimensions {
-            format!("scale={}:{},{}", width, height, padding)
-        } else {
-            format!("{}", padding)
-        };
 
-        let (trim_video_filter, trim_audio_filter) = if let Some(segments) = trim_segments {
+        // Build the post-processing chain for video (transforms + scale + pad)
+        let mut video_post_chain: Vec<String> = Vec::new();
+        if !transform_filters.is_empty() {
+            video_post_chain.push(transform_filters.clone());
+        }
+        if let Some((width, height)) = dimensions {
+            video_post_chain.push(format!("scale={}:{}", width, height));
+        }
+        video_post_chain.push(String::from(padding));
+        let video_post_process = video_post_chain.join(",");
+
+        // Build unified filter_complex string
+        let mut filter_complex_parts: Vec<String> = Vec::new();
+        let mut map_video = false;
+        let mut map_audio = false;
+
+        if let Some(segments) = trim_segments {
             if !segments.is_empty() {
+                map_video = true;
                 if segments.len() == 1 {
                     let seg = &segments[0];
-                    let video_filter =
-                        format!("trim={}:{},setpts=PTS-STARTPTS", seg.start, seg.end);
-                    let audio_filter =
-                        format!("atrim={}:{},asetpts=PTS-STARTPTS", seg.start, seg.end);
-                    (Some(video_filter), Some(audio_filter))
+                    // Single trim: trim -> post_process -> [outv]
+                    filter_complex_parts.push(format!(
+                        "[0:v]trim={}:{},setpts=PTS-STARTPTS,{}[outv]",
+                        seg.start, seg.end, video_post_process
+                    ));
                 } else {
+                    // Multi trim: trim segments -> concat -> post_process -> [outv]
                     let mut video_parts = Vec::new();
                     let mut video_labels = Vec::new();
-
                     for (i, seg) in segments.iter().enumerate() {
                         let label = format!("v{}", i);
                         video_labels.push(format!("[{}]", label));
@@ -194,61 +206,66 @@ impl FFMPEG {
                             seg.start, seg.end, label
                         ));
                     }
+                    filter_complex_parts.push(video_parts.join("; "));
 
-                    let mut audio_parts = Vec::new();
-                    let mut audio_labels = Vec::new();
+                    // Concat segments, apply post-processing, output to [outv]
+                    filter_complex_parts.push(format!(
+                        "{} concat=n={}:v=1:a=0,{}[outv]",
+                        video_labels.join(""),
+                        segments.len(),
+                        video_post_process
+                    ));
+                }
+            }
+        }
 
-                    for (i, seg) in segments.iter().enumerate() {
-                        let label = format!("a{}", i);
-                        audio_labels.push(format!("[{}]", label));
-                        audio_parts.push(format!(
-                            "[0:a]atrim={}:{},asetpts=PTS-STARTPTS[{}]",
-                            seg.start, seg.end, label
+        // If no trimming, just apply post-processing to input
+        if !map_video {
+            filter_complex_parts.push(format!("[0:v]{}[outv]", video_post_process));
+            map_video = true;
+        }
+
+        // Only process audio if not muted AND trimming is present
+        if !should_mute_video {
+            if let Some(segments) = trim_segments {
+                if !segments.is_empty() {
+                    map_audio = true;
+                    if segments.len() == 1 {
+                        let seg = &segments[0];
+                        filter_complex_parts.push(format!(
+                            "[0:a]atrim={}:{},asetpts=PTS-STARTPTS[outa]",
+                            seg.start, seg.end
+                        ));
+                    } else {
+                        let mut audio_parts = Vec::new();
+                        let mut audio_labels = Vec::new();
+                        for (i, seg) in segments.iter().enumerate() {
+                            let label = format!("a{}", i);
+                            audio_labels.push(format!("[{}]", label));
+                            audio_parts.push(format!(
+                                "[0:a]atrim={}:{},asetpts=PTS-STARTPTS[{}]",
+                                seg.start, seg.end, label
+                            ));
+                        }
+                        filter_complex_parts.push(format!(
+                            "{}; {} concat=n={}:v=0:a=1[outa]",
+                            audio_parts.join("; "),
+                            audio_labels.join(""),
+                            segments.len()
                         ));
                     }
-
-                    let video_filter = format!(
-                        "{}; {} concat=n={}:v=1:a=0[outv]",
-                        video_parts.join("; "),
-                        video_labels.join(""),
-                        segments.len()
-                    );
-
-                    let audio_filter = format!(
-                        "{}; {} concat=n={}:v=0:a=1[outa]",
-                        audio_parts.join("; "),
-                        audio_labels.join(""),
-                        segments.len()
-                    );
-
-                    (Some(video_filter), Some(audio_filter))
                 }
-            } else {
-                (None, None)
             }
-        } else {
-            (None, None)
+        }
+
+        let fc = match filter_complex_parts.len() {
+            0 => "".to_string(),
+            _ => filter_complex_parts.join(";").to_string(),
         };
 
-        let mut vf_filter = String::new();
-
-        // Add trim filter first if present
-        if let Some(ref trim_filter) = trim_video_filter {
-            vf_filter.push_str(trim_filter);
-            vf_filter.push_str(",");
+        if !fc.is_empty() {
+            cmd_args.extend_from_slice(&["-filter_complex", &fc]);
         }
-
-        // Add transform filters
-        if !transform_filters.is_empty() {
-            vf_filter.push_str(&transform_filters);
-            vf_filter.push_str(",");
-        }
-
-        // Add pad filter
-        vf_filter.push_str(&pad_filter);
-
-        cmd_args.push("-filter:v:0");
-        cmd_args.push(&vf_filter);
 
         // FPS
         if let Some(fps_val) = fps {
@@ -256,15 +273,21 @@ impl FFMPEG {
             cmd_args.push(fps_val);
         }
 
-        // Build audio filter chain
-        if let Some(ref audio_filter) = trim_audio_filter {
-            cmd_args.push("-filter_complex");
-            cmd_args.push(audio_filter);
+        // Map output video
+        if map_video {
+            cmd_args.extend_from_slice(&["-map", "[outv]"]);
         }
 
-        // Mute Audio (this takes precedence over audio filters)
+        // Map output audio
+        if map_audio {
+            cmd_args.extend_from_slice(&["-map", "[outa]"]);
+        } else if !should_mute_video {
+            cmd_args.extend_from_slice(&["-map", "0:a"]);
+        }
+
+        // Mute Audio (overrides everything if set)
         if should_mute_video {
-            cmd_args.push("-an")
+            cmd_args.push("-an");
         }
 
         let mut metadata_args: Vec<String> = Vec::new();
@@ -300,8 +323,10 @@ impl FFMPEG {
         }
 
         // Remove the `Chapters` metadata forcefully if video has been trimmed
-        if let Some(_) = trim_video_filter {
-            metadata_args.extend_from_slice(&["-map_chapters".to_string(), "-1".to_string()]);
+        if let Some(segments) = trim_segments {
+            if !segments.is_empty() {
+                metadata_args.extend_from_slice(&["-map_chapters".to_string(), "-1".to_string()]);
+            }
         }
 
         for arg in metadata_args.iter().map(|s| s.as_str()) {
@@ -317,10 +342,7 @@ impl FFMPEG {
                     } else {
                         cmd_args.push("copy");
                     }
-                    cmd_args.extend_from_slice(&["-map", "0"]);
-
                     cmd_args.extend_from_slice(&["-map", "1"]);
-
                     cmd_args.extend_from_slice(&["-disposition:v:1", "attached_pic"]);
                 }
             }
