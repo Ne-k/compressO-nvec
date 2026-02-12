@@ -18,6 +18,7 @@ import {
   useState,
 } from 'react'
 
+import { TimelineScales } from '../Timeline/useTimelineEngine'
 import Tooltip from '../Tooltip'
 
 export const rowIds = {
@@ -107,7 +108,7 @@ const getDefaultEditorData = ({
   ]
 }
 
-export const scales = {
+export const scales: TimelineScales = {
   scale: 1,
   scaleWidth: 50,
   startLeft: 20,

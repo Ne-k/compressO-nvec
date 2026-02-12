@@ -6,12 +6,13 @@ import { useSnapshot } from 'valtio'
 import { subscribeKey } from 'valtio/utils'
 
 import Image from '@/components/Image'
+import useTimelineEngine from '@/components/Timeline/useTimelineEngine'
 import VideoPlayer, { VideoPlayerRef } from '@/components/VideoPlayer'
 import VideoTrimmerTimeline, {
   rowIds,
+  scales,
   VideoTrimmerTimelineRef,
 } from '@/components/VideoTrimmerTimeline'
-import useTimelineEngine from '@/components/VideoTrimmerTimeline/useTimelineEngine'
 import { formatDuration } from '@/utils/string'
 import VideoTransformer from './VideoTransformer'
 import { appProxy } from '../-state'
@@ -126,7 +127,7 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
 
   return (
     <div className="relative w-full flex items-center justify-center">
-      <div className="min-w-[60vw]">
+      <div className="relative">
         {previewMode === 'video' && videoPath ? (
           <VideoPlayer
             ref={playerRef}
@@ -135,13 +136,21 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
                 ? compressedVideo?.path!
                 : videoPath!
             }
+            enableTimelinePlayer={
+              !(
+                showTrimmerLayout ||
+                showTransformerLayout ||
+                isProcessCompleted
+              )
+            }
             progressInterval={10}
             controls={false}
             playPauseOnSpaceKeydown
             autoFocus
-            containerClassName="min-w-[60vw] mx-auto"
+            containerClassName="w-full h-full mx-auto"
             style={{
-              maxWidth: '65vw',
+              width: '100%',
+              minWidth: '65vw',
               maxHeight: '65vh',
               aspectRatio:
                 (video?.dimensions?.width ?? 1) /
@@ -158,7 +167,7 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
                 const internalPlayer = playerRef.current.getInternalPlayer()
                 if (internalPlayer && !internalPlayer.paused) {
                   setTime(playedSeconds)
-                  autoScrollCursor()
+                  autoScrollCursor(scales)
                 }
               }
             }}

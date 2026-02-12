@@ -1,7 +1,9 @@
+import { Timeline, TimelineState } from '@xzdarcy/react-timeline-editor'
 import {
   forwardRef,
   useCallback,
   useEffect,
+  useId,
   useImperativeHandle,
   useRef,
   useState,
@@ -13,6 +15,9 @@ import { ClassNameValue } from 'tailwind-merge'
 import { cn } from '@/utils/tailwind'
 import Button from '../Button'
 import Icon from '../Icon'
+import useTimelineEngine, {
+  TimelineScales,
+} from '../Timeline/useTimelineEngine'
 
 /**
  * react-player v3 is better type-safety but is feature incomplete with v2.
@@ -27,6 +32,7 @@ export interface VideoPlayerRef {
   pauseVideo: () => void
   getPlaybackState: () => 'playing' | 'paused'
   captureVideoFrame: () => Promise<string | null>
+  enableTimelinePlayer?: boolean
 }
 
 export interface VideoPlayerProps extends BaseReactPlayerProps {
@@ -34,13 +40,32 @@ export interface VideoPlayerProps extends BaseReactPlayerProps {
   containerClassName?: ClassNameValue
 }
 
+const scales: TimelineScales = {
+  scale: 1,
+  scaleWidth: 100,
+  startLeft: 20,
+} as const
+
 const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
-  ({ playPauseOnSpaceKeydown, containerClassName, ...props }, forwardedRef) => {
+  (
+    {
+      playPauseOnSpaceKeydown,
+      containerClassName,
+      enableTimelinePlayer,
+      onProgress,
+      onDuration,
+      ...props
+    },
+    forwardedRef,
+  ) => {
+    const id = useId()
     const [isPlaying, setIsPlaying] = useState(false)
+    const [duration, setDuration] = useState<number | null>(null)
 
     const playerRef = useRef<ReactPlayer | null>(null)
     const playPauseButtonRef = useRef<HTMLButtonElement | null>(null)
     const lastCapturedVideoFrame = useRef<string | null>(null)
+    const timelinePlayerRef = useRef<TimelineState | null>(null)
 
     const togglePlayPause = useCallback(() => {
       setIsPlaying((s) => !s)
@@ -140,36 +165,110 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       }
     }, [])
 
+    const { refreshTimeline, autoScrollCursor } = useTimelineEngine({
+      timelineState: timelinePlayerRef,
+      totalDuration: (duration ?? 0) / 1000,
+    })
+
     return (
-      <div
-        className={cn('relative w-full h-full', containerClassName)}
-        role="button"
-        onClick={togglePlayPause}
-      >
-        <ReactPlayer
-          ref={playerRef}
-          controls
-          width="100%"
-          height="100%"
-          playing={isPlaying}
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-          onEnded={() => setIsPlaying(false)}
-          {...props}
-        />
-        <Button
-          ref={playPauseButtonRef}
-          onPress={togglePlayPause}
-          isIconOnly
-          radius="full"
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-/12  bg-black/30 hover:bg-black/40 transition-colors cursor-pointer"
+      <div className={cn('w-full h-full', containerClassName)}>
+        <div
+          className={cn('relative w-full h-full')}
+          role="button"
+          onClick={togglePlayPause}
         >
-          <Icon
-            name={isPlaying ? 'pause' : 'play'}
-            size={28}
-            className="text-white drop-shadow-lg"
+          <ReactPlayer
+            ref={playerRef}
+            controls
+            width="100%"
+            height="100%"
+            playing={isPlaying}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onEnded={() => setIsPlaying(false)}
+            onProgress={(progress) => {
+              onProgress?.(progress)
+              if (timelinePlayerRef.current) {
+                timelinePlayerRef.current.setTime(progress.playedSeconds)
+                autoScrollCursor(scales)
+              }
+            }}
+            onDuration={(duration) => {
+              onDuration?.(duration)
+              setDuration(duration)
+              if (timelinePlayerRef.current) {
+                refreshTimeline()
+              }
+            }}
+            {...props}
           />
-        </Button>
+          <Button
+            ref={playPauseButtonRef}
+            onPress={togglePlayPause}
+            isIconOnly
+            radius="full"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2  bg-black/30 hover:bg-black/40 transition-colors cursor-pointer"
+          >
+            <Icon
+              name={isPlaying ? 'pause' : 'play'}
+              size={28}
+              className="text-white drop-shadow-lg"
+            />
+          </Button>
+        </div>
+        {enableTimelinePlayer && duration ? (
+          <Timeline
+            key={id}
+            ref={timelinePlayerRef}
+            editorData={[
+              {
+                id: 'videoPlayer',
+                actions: [
+                  {
+                    id: 'videoPlayer',
+                    start: 0,
+                    minStart: 0,
+                    end: duration,
+                    maxEnd: duration,
+                    effectId: 'videoPlayer',
+                    disable: true,
+                    movable: false,
+                    flexible: false,
+                  },
+                ],
+              },
+            ]}
+            effects={{
+              videoPlayer: { id: 'videoPlayer', name: '' },
+            }}
+            scale={scales.scale}
+            scaleWidth={scales.scaleWidth}
+            startLeft={scales.startLeft}
+            autoScroll
+            style={{
+              width: '100%',
+              height: '75px',
+              borderRadius: '10px',
+              margin: '10px 0',
+            }}
+            onCursorDrag={(time) => {
+              if (playerRef.current) {
+                playerRef.current.seekTo(time, 'seconds')
+              }
+            }}
+            onClickTimeArea={(time) => {
+              if (playerRef.current) {
+                playerRef.current.seekTo(time, 'seconds')
+              }
+              return true
+            }}
+            onClickRow={(_, { time }) => {
+              if (playerRef.current) {
+                playerRef.current.seekTo(time, 'seconds')
+              }
+            }}
+          />
+        ) : null}
       </div>
     )
   },

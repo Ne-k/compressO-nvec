@@ -18,7 +18,7 @@
     "externalBin": ["./bin/compresso_ffmpeg"],
     "fileAssociations": [
       {
-        "ext": ["mp4", "mov", "mkv", "webm", "avi", "m4v"],
+        "ext": ["mp4", "mov", "mkv", "webm", "avi"],
         "mimeType": "video/*",
         "role": "Editor"
       }

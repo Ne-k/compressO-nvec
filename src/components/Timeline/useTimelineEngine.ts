@@ -1,8 +1,6 @@
 import { TimelineState } from '@xzdarcy/react-timeline-editor'
 import React, { useEffect } from 'react'
 
-import { scales } from '.'
-
 type UseEngineProps = {
   timelineState: React.RefObject<TimelineState>
   totalDuration: number
@@ -11,6 +9,12 @@ type UseEngineProps = {
   onSeek?: (time: number) => void
   onTimeChange?: (time: number) => void
   onEnd?: () => void
+}
+
+export type TimelineScales = {
+  scale: number
+  scaleWidth: number
+  startLeft: number
 }
 
 function useTimelineEngine({
@@ -47,7 +51,7 @@ function useTimelineEngine({
     }
   }, [timelineState.current])
 
-  const autoScrollCursor = () => {
+  const autoScrollCursor = (scales: TimelineScales) => {
     if (!timelineState.current) return
 
     const { width } = timelineState.current.target.getBoundingClientRect()
