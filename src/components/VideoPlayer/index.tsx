@@ -48,7 +48,13 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
 
     const handleKeyDown = useCallback(
       (e: KeyboardEvent) => {
-        if (e.code === 'Space') {
+        const target = e.target as HTMLElement
+        const isInputField =
+          target instanceof HTMLInputElement ||
+          target instanceof HTMLTextAreaElement ||
+          target.isContentEditable
+
+        if (e.code === 'Space' && !isInputField) {
           e.preventDefault()
           togglePlayPause()
         }

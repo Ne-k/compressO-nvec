@@ -12,7 +12,7 @@ use crate::domain::FileMetadata;
 pub fn setup_app_data_dir(app: &mut tauri::App) -> Result<PathBuf, tauri::Error> {
     let scope = app.fs_scope();
     let app_data_directory = app.path().app_data_dir()?;
-    scope.allow_directory(&app_data_directory, true);
+    scope.allow_directory(&app_data_directory, true)?;
 
     // Create assets directory required for ffmpeg
     fs::create_dir_all(format!(
@@ -37,12 +37,12 @@ pub fn get_file_metadata(path: &str) -> Result<FileMetadata, String> {
 
     Ok(FileMetadata {
         path: String::from(path),
-        file_name: String::from(file_path.file_name().unwrap().to_str().unwrap()),
+        file_name: String::from(file_path.file_name().unwrap_or_default().to_str().unwrap()),
         mime_type: match mime_type {
             Some(m) => m.to_string(),
             None => String::from(""),
         },
-        extension: String::from(file_path.extension().unwrap().to_str().unwrap()),
+        extension: String::from(file_path.extension().unwrap_or_default().to_str().unwrap()),
         size: metadata.len(),
     })
 }
@@ -97,4 +97,49 @@ pub async fn delete_stale_files(
         }
     }
     Ok(deleted_files)
+}
+
+/// Collects files from a given path with configurable depth.
+///
+/// # Arguments
+/// * `path` - The file or directory path to collect from
+/// * `depth` - Optional depth level for directory traversal:
+///   - `None`: Recursively collect all files (unlimited depth)
+///   - `Some(0)`: Only files in the immediate directory (no subdirectories)
+///   - `Some(n)`: Go n levels deep into subdirectories
+///
+/// # Returns
+/// A vector of file paths found at the specified depth
+pub fn collect_files(path: &str, depth: Option<u32>) -> std::io::Result<Vec<String>> {
+    let metadata = std::fs::metadata(path)?;
+    let mut files = Vec::new();
+
+    if metadata.is_file() {
+        files.push(path.to_string());
+    } else if metadata.is_dir() {
+        let entries = std::fs::read_dir(path)?;
+        for entry in entries {
+            let entry = entry?;
+            let entry_path = entry.path();
+            let path_str = entry_path.to_string_lossy().to_string();
+
+            if entry_path.is_file() {
+                files.push(path_str);
+            } else if entry_path.is_dir() {
+                match depth {
+                    None => {
+                        files.extend(collect_files(&path_str, None)?);
+                    }
+                    Some(0) => {
+                        continue;
+                    }
+                    Some(n) => {
+                        files.extend(collect_files(&path_str, Some(n - 1))?);
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(files)
 }

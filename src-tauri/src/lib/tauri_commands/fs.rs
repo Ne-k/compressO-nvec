@@ -1,7 +1,12 @@
 use clipboard_rs::{Clipboard, ClipboardContext};
 use tauri::Manager;
+use tauri_plugin_fs::FsExt;
 
-use crate::{domain::FileMetadata, ffmpeg, fs};
+use crate::{
+    domain::FileMetadata,
+    ffmpeg,
+    fs::{self, collect_files},
+};
 
 #[tauri::command]
 pub async fn get_file_metadata(file_path: &str) -> Result<FileMetadata, String> {
@@ -44,9 +49,33 @@ pub async fn delete_cache(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn copy_file_to_clipboard(app: tauri::AppHandle, file_path: &str) -> Result<(), String> {
+pub async fn copy_file_to_clipboard(_: tauri::AppHandle, file_path: &str) -> Result<(), String> {
     let ctx = ClipboardContext::new().map_err(|err| err.to_string())?;
     ctx.set_files(vec![file_path.to_owned()])
         .map_err(|err| err.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn read_files_from_clipboard(
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<String>, String> {
+    let ctx = ClipboardContext::new().map_err(|err| err.to_string())?;
+    let paths = ctx.get_files().map_err(|err| err.to_string())?;
+
+    let fs_scope = app_handle.fs_scope();
+    let asset_scope = app_handle.asset_protocol_scope();
+
+    let mut all_files = Vec::new();
+
+    for path in &paths {
+        let files = collect_files(path, Some(0)).map_err(|err| err.to_string())?;
+        for file in &files {
+            let _ = fs_scope.allow_file(file);
+            let _ = asset_scope.allow_file(file);
+        }
+        all_files.extend(files);
+    }
+
+    Ok(all_files)
 }

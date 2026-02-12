@@ -15,12 +15,13 @@ import { getFileMetadata } from '@/tauri/commands/fs'
 import { extensions } from '@/types/compression'
 import { formatBytes } from '@/utils/fs'
 import { convertDurationToMilliseconds } from '@/utils/string'
-import { Video } from '../../types/app'
 import { appProxy, videoConfigInitialState } from './-state'
 import Setting from './ui/app-settings/Setting'
 import DragAndDrop from './ui/DragAndDrop'
 import OpenWithApp from './ui/OpenWithApp'
+import ReadFilesFromClipboard from './ui/ReadFilesFromClipboard'
 import VideoConfig from './ui/VideoConfig'
+import { Video } from '../../types/app'
 
 export const Route = createFileRoute('/(root)/')({
   component: Root,
@@ -31,19 +32,22 @@ function Root() {
 
   const { videos, isLoadingFiles, totalSelectedFilesCount } = state
 
-  const handleVideoSelected = React.useCallback(
+  const handleVideoSelection = React.useCallback(
     async (path: string | string[]) => {
       if (appProxy.state.isCompressing) return
 
-      appProxy.state.isLoadingFiles = true
-
-      const videoPaths = Array.isArray(path) ? path : [path]
-      appProxy.state.totalSelectedFilesCount = videoPaths.length
+      const rawPaths = Array.isArray(path) ? path : [path]
+      const videoPaths = rawPaths.filter((filePath) => {
+        const ext = filePath.split('.').pop()?.toLowerCase()
+        return ext && Object.keys(extensions.video).includes(ext)
+      })
 
       if (videoPaths.length === 0) {
-        toast.error('Invalid video(s) selected.')
         return
       }
+
+      appProxy.state.isLoadingFiles = true
+      appProxy.state.totalSelectedFilesCount = videoPaths.length
 
       let corruptedFilesCount = 0
       for (const index in videoPaths) {
@@ -146,11 +150,11 @@ function Root() {
         console.warn(message)
         return
       }
-      handleVideoSelected(filePath)
+      handleVideoSelection(filePath)
     } catch (error: any) {
       toast.error(error?.message ?? 'Could not select a video.')
     }
-  }, [handleVideoSelected])
+  }, [handleVideoSelection])
 
   return isLoadingFiles ? (
     !videos.length || (totalSelectedFilesCount > 1 && videos.length === 1) ? (
@@ -192,17 +196,18 @@ function Root() {
           <Icon name="videoFile" className="text-primary" size={60} />
           <p className="italic text-sm mt-4 text-gray-600 dark:text-gray-400 text-center">
             Drag & Drop
-            <span className="block">Or</span>
-            Click to select video(s).
+            <span className="block text-xs">Or</span>
+            Click to select video(s)
           </p>
         </div>
       </motion.div>
       <DragAndDrop
         multiple
         disable={videos.length > 0}
-        onFile={handleVideoSelected}
+        onFile={handleVideoSelection}
       />
-      <OpenWithApp onFiles={handleVideoSelected} />
+      <OpenWithApp onFiles={handleVideoSelection} />
+      <ReadFilesFromClipboard onFiles={handleVideoSelection} />
       <Setting />
     </Layout>
   )
