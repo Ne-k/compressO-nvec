@@ -78,7 +78,7 @@ impl FFMPEG {
 
         let has_audio_stream = {
             let mut ffprobe = FFPROBE::new(&self.app)?;
-            ffprobe.has_audio_stream(video_path).await?
+            !ffprobe.get_audio_streams(video_path).await?.is_empty()
         };
 
         println!(">> has_audio_stream {}", has_audio_stream);
@@ -157,17 +157,18 @@ impl FFMPEG {
                 codec.to_string()
             } else {
                 if preset_name.is_none() {
-                    let source_codec = {
+                    let source_streams = {
                         let mut ffprobe = FFPROBE::new(&self.app)?;
-                        ffprobe.get_video_codec(video_path).await?
+                        ffprobe.get_video_streams(video_path).await?
                     };
 
-                    match source_codec {
-                        Some(codec_name) => codec_name.to_string(),
+                    match source_streams.first() {
+                        Some(stream) => stream.codec.clone(),
                         None => default_codec(convert_to_extension),
-                    };
+                    }
+                } else {
+                    default_codec(convert_to_extension)
                 }
-                default_codec(convert_to_extension)
             }
         };
         println!(">> {:?}", output_codec);

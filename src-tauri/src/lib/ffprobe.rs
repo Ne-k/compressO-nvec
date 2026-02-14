@@ -12,6 +12,21 @@ use tauri::AppHandle;
 use tauri::{Listener, Manager};
 use tauri_plugin_shell::ShellExt;
 
+#[derive(Debug, Clone)]
+pub struct VideoStream {
+    pub codec: String,
+    pub width: f64,
+    pub height: f64,
+}
+
+#[derive(Debug, Clone)]
+pub struct AudioStream {
+    pub codec: String,
+    pub channels: String,
+    pub channel_layout: String,
+    pub sample_rate: String,
+}
+
 pub struct FFPROBE {
     app: AppHandle,
     ffprobe: Command,
@@ -180,17 +195,17 @@ impl FFPROBE {
         }
     }
 
-    // Get the video codec name from the source video
-    pub async fn get_video_codec(&mut self, path: &str) -> Result<Option<String>, String> {
+    // Get all video streams from the source video
+    pub async fn get_video_streams(&mut self, path: &str) -> Result<Vec<VideoStream>, String> {
         let command = self
             .ffprobe
             .args([
                 "-v",
                 "error",
                 "-select_streams",
-                "v:0",
+                "v",
                 "-show_entries",
-                "stream=codec_name",
+                "stream=codec_name,width,height",
                 "-of",
                 "json",
                 path,
@@ -221,7 +236,7 @@ impl FFPROBE {
                 );
 
                 let thread = tokio::task::spawn(async move {
-                    let codec = if let Some(stdout) = cp_clone1.take_stdout() {
+                    let streams = if let Some(stdout) = cp_clone1.take_stdout() {
                         let reader = std::io::BufReader::new(stdout);
                         let mut json_str = String::new();
 
@@ -234,38 +249,51 @@ impl FFPROBE {
                         }
 
                         if let Ok(json) = serde_json::from_str::<Value>(&json_str) {
-                            if let Some(streams) = json.get("streams").and_then(|s| s.as_array()) {
-                                if let Some(stream) = streams.first() {
-                                    stream
+                            if let Some(streams_array) = json.get("streams").and_then(|s| s.as_array()) {
+                                let mut result = Vec::new();
+                                for stream in streams_array {
+                                    let codec = stream
                                         .get("codec_name")
                                         .and_then(|c| c.as_str())
-                                        .map(String::from)
-                                } else {
-                                    None
+                                        .unwrap_or("")
+                                        .to_string();
+
+                                    let width = stream
+                                        .get("width")
+                                        .and_then(|w| w.as_f64())
+                                        .unwrap_or(0.0);
+
+                                    let height = stream
+                                        .get("height")
+                                        .and_then(|h| h.as_f64())
+                                        .unwrap_or(0.0);
+
+                                    result.push(VideoStream { codec, width, height });
                                 }
+                                result
                             } else {
-                                None
+                                Vec::new()
                             }
                         } else {
-                            None
+                            Vec::new()
                         }
                     } else {
-                        None
+                        Vec::new()
                     };
 
                     if cp_clone1.wait().is_ok() {
-                        (0, codec)
+                        (0, streams)
                     } else {
-                        (1, None)
+                        (1, Vec::new())
                     }
                 });
 
                 let result = match thread.await {
-                    Ok((exit_status, codec)) => {
+                    Ok((exit_status, streams)) => {
                         if exit_status == 1 {
-                            Err("Failed to get video codec".to_string())
+                            Err("Failed to get video streams".to_string())
                         } else {
-                            Ok(codec)
+                            Ok(streams)
                         }
                     }
                     Err(err) => Err(err.to_string()),
@@ -286,20 +314,20 @@ impl FFPROBE {
         }
     }
 
-    // Check if the media has an audio stream or not
-    pub async fn has_audio_stream(&mut self, path: &str) -> Result<bool, String> {
+    // Get all audio streams from the media
+    pub async fn get_audio_streams(&mut self, path: &str) -> Result<Vec<AudioStream>, String> {
         let command = self
             .ffprobe
             .args([
-                "-i",
-                path,
-                "-show_streams",
+                "-v",
+                "error",
                 "-select_streams",
                 "a",
-                "-loglevel",
-                "quiet",
-                "-print_format",
+                "-show_entries",
+                "stream=codec_name,channels,channel_layout,sample_rate",
+                "-of",
                 "json",
+                path,
             ])
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
@@ -327,7 +355,7 @@ impl FFPROBE {
                 );
 
                 let thread = tokio::task::spawn(async move {
-                    let has_audio = if let Some(stdout) = cp_clone1.take_stdout() {
+                    let streams = if let Some(stdout) = cp_clone1.take_stdout() {
                         let reader = std::io::BufReader::new(stdout);
                         let mut json_str = String::new();
 
@@ -340,35 +368,64 @@ impl FFPROBE {
                         }
 
                         if let Ok(json) = serde_json::from_str::<Value>(&json_str) {
-                            if let Some(streams) = json.get("streams") {
-                                if let Some(streams_array) = streams.as_array() {
-                                    !streams_array.is_empty()
-                                } else {
-                                    false
+                            if let Some(streams_array) = json.get("streams").and_then(|s| s.as_array()) {
+                                let mut result = Vec::new();
+                                for stream in streams_array {
+                                    let codec = stream
+                                        .get("codec_name")
+                                        .and_then(|c| c.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
+
+                                    let channels = stream
+                                        .get("channels")
+                                        .and_then(|c| c.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
+
+                                    let channel_layout = stream
+                                        .get("channel_layout")
+                                        .and_then(|c| c.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
+
+                                    let sample_rate = stream
+                                        .get("sample_rate")
+                                        .and_then(|s| s.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
+
+                                    result.push(AudioStream {
+                                        codec,
+                                        channels,
+                                        channel_layout,
+                                        sample_rate,
+                                    });
                                 }
+                                result
                             } else {
-                                false
+                                Vec::new()
                             }
                         } else {
-                            false
+                            Vec::new()
                         }
                     } else {
-                        false
+                        Vec::new()
                     };
 
                     if cp_clone1.wait().is_ok() {
-                        (0, has_audio)
+                        (0, streams)
                     } else {
-                        (1, has_audio)
+                        (1, Vec::new())
                     }
                 });
 
                 let result = match thread.await {
-                    Ok((exit_status, has_audio)) => {
+                    Ok((exit_status, streams)) => {
                         if exit_status == 1 {
-                            Err("Failed to check audio stream".to_string())
+                            Err("Failed to get audio streams".to_string())
                         } else {
-                            Ok(has_audio)
+                            Ok(streams)
                         }
                     }
                     Err(err) => Err(err.to_string()),
