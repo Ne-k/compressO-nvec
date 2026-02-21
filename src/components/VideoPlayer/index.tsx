@@ -47,6 +47,8 @@ const scales: TimelineScales = {
   startLeft: 20,
 } as const
 
+const SEEK_DURATION = 3
+
 const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
   (
     {
@@ -83,9 +85,23 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
         if (e.code === 'Space' && !isInputField) {
           e.preventDefault()
           togglePlayPause()
+        } else if (e.code === 'ArrowRight' && !isInputField) {
+          e.preventDefault()
+          if (playerRef.current && duration) {
+            const currentTime = playerRef.current.getCurrentTime()
+            const newTime = Math.min(currentTime + SEEK_DURATION, duration)
+            playerRef.current.seekTo(newTime, 'seconds')
+          }
+        } else if (e.code === 'ArrowLeft' && !isInputField) {
+          e.preventDefault()
+          if (playerRef.current) {
+            const currentTime = playerRef.current.getCurrentTime()
+            const newTime = Math.max(currentTime - SEEK_DURATION, 0)
+            playerRef.current.seekTo(newTime, 'seconds')
+          }
         }
       },
-      [togglePlayPause],
+      [togglePlayPause, duration],
     )
 
     const captureVideoFrame = useCallback(async () => {
