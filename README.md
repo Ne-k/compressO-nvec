@@ -14,16 +14,7 @@
 		Available for <strong>Linux</strong>, <strong>Windows</strong> & <strong>MacOS</strong>.
     </p>
     <br />
-</div>
-<div align="center">
-    <img src="public/screenshot.png" alt="Screenshot" height="500" style="border-radius: 16px;" />
-</div>
-
-### Install
-<p>
-  Download installers📦 for the specific platform can be accessed from the [releases](https://github.com/codeforreal1/compressO/releases) page.
-</p>
-<div>
+	<div>
   <a href="https://github.com/codeforreal1/compressO/releases">
     <img alt="Linux" src="https://img.shields.io/badge/-Linux-yellow?style=flat-square&logo=linux&logoColor=black&color=orange" />
   </a>
@@ -34,6 +25,17 @@
     <img alt="macOS" src="https://img.shields.io/badge/-macOS-black?style=flat-square&logo=apple&logoColor=white" />
   </a>
 </div>
+	    <br />
+
+</div>
+<div align="center">
+    <img src="public/screenshot.png" alt="Screenshot" height="500" style="border-radius: 16px;" />
+</div>
+
+### Install
+<p>
+  Download installers📦 for the specific platform can be accessed from the [releases](https://github.com/codeforreal1/compressO/releases) page.
+</p>
 
 <strong>Installer Info:</strong>
 
