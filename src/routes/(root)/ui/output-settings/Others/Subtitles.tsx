@@ -100,18 +100,30 @@ function Subtitles({ videoIndex }: SubtitlesProps) {
   const handlePreserveExistingChange = useCallback(
     (isSelected: boolean) => {
       if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
-        if (appProxy.state.videos[videoIndex].config.subtitlesConfig) {
+        if (!appProxy.state.videos[videoIndex].config.subtitlesConfig) {
+          appProxy.state.videos[videoIndex].config.subtitlesConfig = {
+            subtitles: [],
+            shouldEnableSubtitles: true,
+            preserveExistingSubtitles: isSelected,
+          }
+        } else {
           appProxy.state.videos[videoIndex].config
             .subtitlesConfig!.preserveExistingSubtitles = isSelected
-          appProxy.state.videos[videoIndex].isConfigDirty = true
         }
+        appProxy.state.videos[videoIndex].isConfigDirty = true
       } else {
         if (appProxy.state.videos.length > 1) {
-          if (appProxy.state.commonConfigForBatchCompression.subtitlesConfig) {
+          if (!appProxy.state.commonConfigForBatchCompression.subtitlesConfig) {
+            appProxy.state.commonConfigForBatchCompression.subtitlesConfig = {
+              subtitles: [],
+              shouldEnableSubtitles: true,
+              preserveExistingSubtitles: isSelected,
+            }
+          } else {
             appProxy.state.commonConfigForBatchCompression
               .subtitlesConfig!.preserveExistingSubtitles = isSelected
-            normalizeBatchVideosConfig()
           }
+          normalizeBatchVideosConfig()
         }
       }
     },
