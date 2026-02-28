@@ -12,6 +12,7 @@ import useTimelineEngine from '@/components/Timeline/useTimelineEngine'
 import Tooltip from '@/components/Tooltip'
 import VideoPlayer, { VideoPlayerRef } from '@/components/VideoPlayer'
 import { generateVideoThumbnail } from '@/tauri/commands/ffmpeg'
+import { copyFileToClipboard } from '@/tauri/commands/fs'
 import VideoTrimmerTimeline, {
   rowIds,
   scales,
@@ -66,6 +67,40 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
   const trimConfigSetDebounceRef = useRef<NodeJS.Timeout | null>(null)
   const [isThumbnailRegenerating, setIsThumbnailRegenerating] = useState(false)
   const thumbnailCacheRef = useRef<Record<string, string>>({})
+  const [isCopyingFrame, setIsCopyingFrame] = useState(false)
+
+  const handleCopyCurrentFrame = useCallback(async () => {
+    if (!videoPathRaw || !videoDuration || !playerRef.current) {
+      toast.error('Unable to copy frame')
+      return
+    }
+
+    setIsCopyingFrame(true)
+    try {
+      const currentTime = playerRef.current.playerRef?.getCurrentTime?.()
+      if (!currentTime) {
+        toast.error('Unable to get current time')
+        return
+      }
+
+      const targetDuration =
+        currentTime >= videoDuration
+          ? currentTime - 0.05
+          : currentTime <= 0
+            ? 0.05
+            : currentTime
+      const timestamp = formatDuration(targetDuration)
+
+      const result = await generateVideoThumbnail(videoPathRaw, timestamp)
+
+      await copyFileToClipboard(result.filePath)
+      toast.success('Frame copied to clipboard')
+    } catch {
+      toast.error('Failed to copy frame to clipboard')
+    } finally {
+      setIsCopyingFrame(false)
+    }
+  }, [videoPathRaw, videoDuration])
 
   const handleRegenerateThumbnail = useCallback(
     async (timeStamp?: string, retries = 2, forced = false) => {
@@ -247,6 +282,20 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
             playPauseOnSpaceKeydown={!showTransformerLayout}
             autoFocus
             containerClassName="w-full h-full mx-auto"
+            contextMenu={
+              !isProcessCompleted ? (
+                <div className="min-w-[150px] p-1">
+                  <button
+                    className="flex items-center gap-2 w-full px-2 py-2 text-sm text-left hover:bg-default-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={handleCopyCurrentFrame}
+                    disabled={isCopyingFrame}
+                  >
+                    <Icon name="copy" size={20} />
+                    <span>Copy current frame</span>
+                  </button>
+                </div>
+              ) : null
+            }
             style={{
               width: '100%',
               minWidth: '50vw',

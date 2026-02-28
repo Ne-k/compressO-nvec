@@ -1,4 +1,4 @@
-# Code For Real Website
+# CompressO Website
 
 Made with Astro 🗲
 

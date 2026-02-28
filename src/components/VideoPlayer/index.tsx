@@ -41,6 +41,7 @@ export interface VideoPlayerProps extends BaseReactPlayerProps {
   containerClassName?: ClassNameValue
   enableTimelinePlayer?: boolean
   disableClosedCaptions?: boolean
+  contextMenu?: React.ReactNode
 }
 
 const scales: TimelineScales = {
@@ -58,6 +59,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       containerClassName,
       enableTimelinePlayer,
       disableClosedCaptions,
+      contextMenu,
       onProgress,
       onDuration,
       onPlay,
@@ -71,6 +73,11 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
     const id = useId()
     const [isPlaying, setIsPlaying] = useState(false)
     const [duration, setDuration] = useState<number | null>(null)
+    const [contextMenuOpen, setContextMenuOpen] = useState(false)
+    const [contextMenuPosition, setContextMenuPosition] = useState<{
+      x: number
+      y: number
+    } | null>(null)
 
     const playerRef = useRef<ReactPlayer | null>(null)
     const playPauseButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -81,8 +88,48 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       setIsPlaying((s) => !s)
     }, [])
 
+    const handleContextMenu = useCallback(
+      (e: React.MouseEvent) => {
+        if (!contextMenu) return
+
+        e.preventDefault()
+        e.stopPropagation()
+        setContextMenuPosition({ x: e.clientX, y: e.clientY })
+        setContextMenuOpen(true)
+      },
+      [contextMenu],
+    )
+
+    const closeContextMenu = useCallback(() => {
+      setContextMenuOpen(false)
+      setContextMenuPosition(null)
+    }, [])
+
+    useEffect(() => {
+      if (!contextMenuOpen) return
+
+      const handleClick = (e: MouseEvent) => {
+        setTimeout(() => {
+          closeContextMenu()
+        }, 100)
+      }
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') closeContextMenu()
+      }
+
+      window.addEventListener('click', handleClick, true)
+      window.addEventListener('keydown', handleKeyDown)
+
+      return () => {
+        window.removeEventListener('click', handleClick, true)
+        window.removeEventListener('keydown', handleKeyDown)
+      }
+    }, [contextMenuOpen, closeContextMenu])
+
     const handleKeyDown = useCallback(
       (e: KeyboardEvent) => {
+        closeContextMenu()
+
         const target = e.target as HTMLElement
         const isInputField =
           target instanceof HTMLInputElement ||
@@ -108,7 +155,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
           }
         }
       },
-      [togglePlayPause, duration],
+      [togglePlayPause, duration, closeContextMenu],
     )
 
     const captureVideoFrame = useCallback(async () => {
@@ -251,9 +298,14 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
     return (
       <div className={cn('w-full h-full', containerClassName)}>
         <div
-          className={cn('relative w-full h-full')}
+          className="relative w-full h-full"
           role="button"
           onClick={togglePlayPause}
+          onContextMenu={(e) => {
+            if (contextMenu) {
+              handleContextMenu(e)
+            }
+          }}
         >
           <ReactPlayer
             ref={playerRef}
@@ -307,6 +359,20 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
             />
           </Button>
         </div>
+        {contextMenuOpen && contextMenuPosition && contextMenu ? (
+          <div
+            className="fixed z-50 bg-content1 rounded-xl"
+            style={{
+              left: contextMenuPosition.x,
+              top: contextMenuPosition.y,
+            }}
+            onClick={(e) => {
+              e.stopPropagation()
+            }}
+          >
+            {contextMenu}
+          </div>
+        ) : null}
         {enableTimelinePlayer && duration ? (
           <Timeline
             key={id}
