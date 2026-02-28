@@ -1,6 +1,6 @@
 use crate::{
     domain::{
-        AudioConfig, BatchCompressionResult, CompressionResult, TrimSegment, VideoCompressionConfig, VideoInfo,
+        AudioConfig, BatchCompressionResult, CompressionResult, SubtitlesConfig, TrimSegment, VideoCompressionConfig, VideoInfo,
         VideoMetadataConfig, VideoThumbnail,
     },
     ffmpeg::{self},
@@ -8,6 +8,7 @@ use crate::{
     fs::delete_stale_files,
 };
 use serde_json::Value;
+use std::path::Path;
 
 #[tauri::command]
 pub async fn compress_video(
@@ -25,6 +26,7 @@ pub async fn compress_video(
     metadata_config: Option<VideoMetadataConfig>,
     custom_thumbnail_path: Option<&str>,
     trim_segments: Option<Vec<TrimSegment>>,
+    subtitles_config: Option<SubtitlesConfig>,
 ) -> Result<CompressionResult, String> {
     let mut ffmpeg = ffmpeg::FFMPEG::new(&app)?;
     if let Ok(files) =
@@ -51,6 +53,7 @@ pub async fn compress_video(
             metadata_config.as_ref(),
             custom_thumbnail_path,
             trim_segments.as_ref(),
+            subtitles_config.as_ref(),
         )
         .await
     {
@@ -95,4 +98,26 @@ pub async fn compress_videos_batch(
         .await
         .map(|result| Ok(result))
         .unwrap_or_else(|err| Err(err))
+}
+
+#[tauri::command]
+pub async fn extract_subtitle(
+    app: tauri::AppHandle,
+    video_path: &str,
+    stream_index: u32,
+    output_path: &str,
+) -> Result<String, String> {
+    let mut ffmpeg = ffmpeg::FFMPEG::new(&app)?;
+
+    if !Path::new(video_path).exists() {
+        return Err(String::from("Video file does not exist."));
+    }
+
+    if !output_path.ends_with(".srt") {
+        return Err(String::from("Output file must have .srt extension."));
+    }
+
+    ffmpeg
+        .extract_subtitle(video_path, stream_index, output_path)
+        .await
 }

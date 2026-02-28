@@ -82,3 +82,43 @@ export const zoomInStaggerAnimation: { container: Variants; item: Variants } = {
     exit: { opacity: 0, scale: 0.9 },
   },
 }
+
+export const slideUpStaggerAnimation: {
+  container: Variants
+  item: Variants
+} = {
+  container: {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08,
+      },
+    },
+  },
+  item: {
+    hidden: { opacity: 0, y: 10 },
+    show: { opacity: 1, y: 0, transition: { bounce: 0.3, damping: 100 } },
+    exit: { opacity: 0, y: 10 },
+  },
+}
+
+export const slideDownStaggerAnimation: {
+  container: Variants
+  item: Variants
+} = {
+  container: {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08,
+      },
+    },
+  },
+  item: {
+    hidden: { opacity: 0, y: -10 },
+    show: { opacity: 1, y: 0, transition: { bounce: 0.3, damping: 100 } },
+    exit: { opacity: 0, y: -10 },
+  },
+}

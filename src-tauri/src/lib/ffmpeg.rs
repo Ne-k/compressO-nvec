@@ -1,7 +1,7 @@
 use crate::domain::{
     AudioConfig, BatchCompressionIndividualCompressionResult, BatchCompressionProgress,
     BatchCompressionResult, CancelInProgressCompressionPayload, CompressionResult, CustomEvents,
-    TauriEvents, TrimSegment, VideoCompressionConfig, VideoCompressionProgress,
+    SubtitlesConfig, TauriEvents, TrimSegment, VideoCompressionConfig, VideoCompressionProgress,
     VideoMetadataConfig, VideoThumbnail,
 };
 use crate::ffprobe::FFPROBE;
@@ -72,6 +72,7 @@ impl FFMPEG {
         metadata_config: Option<&VideoMetadataConfig>,
         custom_thumbnail_path: Option<&str>,
         trim_segments: Option<&Vec<TrimSegment>>,
+        subtitles_config: Option<&SubtitlesConfig>,
     ) -> Result<CompressionResult, String> {
         if !EXTENSIONS.contains(&convert_to_extension) {
             return Err(String::from("Invalid convert to extension."));
@@ -82,6 +83,23 @@ impl FFMPEG {
             ffprobe.get_audio_streams(video_path).await?
         };
         let has_audio_stream = !audio_streams.is_empty();
+
+        // Detect existing subtitle streams in source video
+        let (existing_subtitle_count, preserve_existing_subtitles) = {
+            if let Some(subs_config) = subtitles_config {
+                let preserve = subs_config.preserve_existing_subtitles.unwrap_or(false);
+                if preserve {
+                    let mut ffprobe = FFPROBE::new(&self.app)?;
+                    let count = ffprobe.get_subtitle_streams(video_path).await?.len();
+                    (count, true)
+                } else {
+                    (0, false)
+                }
+            } else {
+                (0, false)
+            }
+        };
+        let has_existing_subtitles = existing_subtitle_count > 0;
 
         let video_id_clone1 = video_id.to_owned();
         let video_id_clone2 = video_id.to_owned();
@@ -105,13 +123,46 @@ impl FFMPEG {
         cmd_args.push("-i");
         cmd_args.push(video_path);
 
+        // Track input indices for mapping
+        let mut input_index: usize = 1; // 0 is video, 1+ are thumbnails/subtitles
+
         if convert_to_extension != "webm" {
             if let Some(thumb_path) = custom_thumbnail_path {
                 if thumb_path.len() > 0 {
                     cmd_args.extend_from_slice(&["-i", thumb_path]);
+                    input_index += 1;
                 }
             }
         }
+
+        let subtitle_input_indices: Vec<(usize, String)> = if convert_to_extension != "webm" {
+            if let Some(subs_config) = subtitles_config {
+                if subs_config.should_enable_subtitles.unwrap_or(false) {
+                    let mut indices = Vec::new();
+                    for sub in &subs_config.subtitles {
+                        if let Some(ref sub_path) = sub.subtitle_path {
+                            if sub_path.len() > 0 {
+                                cmd_args.extend_from_slice(&["-i", sub_path]);
+                                let lang = if sub.language == "und" {
+                                    String::new()
+                                } else {
+                                    sub.language.clone()
+                                };
+                                indices.push((input_index, lang));
+                                input_index += 1;
+                            }
+                        }
+                    }
+                    indices
+                } else {
+                    Vec::new()
+                }
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
 
         // Preserve existing metadata
         cmd_args.extend_from_slice(&["-map_metadata", "0"]);
@@ -518,6 +569,43 @@ impl FFMPEG {
             cmd_args.push(arg);
         }
 
+        let mut subtitle_args_owned: Vec<String> = Vec::new();
+        let mut subtitle_index = 0usize;
+
+        if has_existing_subtitles {
+            for idx in 0..existing_subtitle_count {
+                subtitle_args_owned.push("-map".to_string());
+                subtitle_args_owned.push(format!("0:s:{}", idx));
+
+                let subtitle_codec = match convert_to_extension {
+                    "mkv" => "srt",
+                    _ => "mov_text",
+                };
+                subtitle_args_owned.push(format!("-c:s:{}", subtitle_index));
+                subtitle_args_owned.push(subtitle_codec.to_string());
+                subtitle_index += 1;
+            }
+        }
+
+        for (sub_input_idx, language) in subtitle_input_indices.iter() {
+            subtitle_args_owned.push("-map".to_string());
+            subtitle_args_owned.push(format!("{}:s", sub_input_idx));
+
+            let subtitle_codec = match convert_to_extension {
+                "mkv" => "srt",
+                _ => "mov_text",
+            };
+            subtitle_args_owned.push(format!("-c:s:{}", subtitle_index));
+            subtitle_args_owned.push(subtitle_codec.to_string());
+
+            if !language.is_empty() {
+                subtitle_args_owned.push(format!("-metadata:s:s:{}", subtitle_index));
+                subtitle_args_owned.push(format!("language={}", language));
+            }
+            subtitle_index += 1;
+        }
+        cmd_args.extend(subtitle_args_owned.iter().map(|s| s.as_str()));
+
         if custom_thumbnail_path.is_some() && convert_to_extension != "webm" {
             if let Some(thumb_path) = custom_thumbnail_path {
                 if thumb_path.len() > 0 {
@@ -808,6 +896,7 @@ impl FFMPEG {
             let metadata_config = video_options.metadata_config.as_ref();
             let thumbnail_path = video_options.custom_thumbnail_path.as_deref();
             let trim_segments = video_options.trim_segments.as_ref();
+            let subtitles_config = video_options.subtitles_config.as_ref();
 
             match ffmpeg_instance
                 .compress_video(
@@ -825,6 +914,7 @@ impl FFMPEG {
                     metadata_config,
                     thumbnail_path,
                     trim_segments,
+                    subtitles_config,
                 )
                 .await
             {
@@ -956,6 +1046,101 @@ impl FFMPEG {
             file_name,
             file_path: output_path.display().to_string(),
         })
+    }
+
+    /// Extracts a subtitle stream from a video file to a separate subtitle file
+    pub async fn extract_subtitle(
+        &mut self,
+        video_path: &str,
+        stream_index: u32,
+        output_path: &str,
+    ) -> Result<String, String> {
+        if !Path::exists(Path::new(video_path)) {
+            return Err(String::from("File does not exist in given path."));
+        }
+
+        let output_path_buf = PathBuf::from(output_path);
+
+        if let Some(parent_dir) = output_path_buf.parent() {
+            if !Path::exists(parent_dir) {
+                return Err(String::from("Target directory does not exist."));
+            }
+        }
+
+        let mut ffprobe = FFPROBE::new(&self.app)?;
+        let subtitle_streams = ffprobe.get_subtitle_streams(video_path).await?;
+
+        let target_stream = match subtitle_streams.iter().find(|s| s.index == stream_index) {
+            Some(stream) => stream,
+            None => {
+                let available_indices: Vec<u32> =
+                    subtitle_streams.iter().map(|s| s.index).collect();
+                return Err(format!(
+                    "Subtitle stream with global index {} not found. Available subtitle stream indices: {:?}",
+                    stream_index, available_indices
+                ));
+            }
+        };
+
+        let codec = &target_stream.codec;
+
+        let subtitle_specific_index = subtitle_streams
+            .iter()
+            .position(|s| s.index == stream_index)
+            .unwrap_or(0);
+
+        log::info!(
+            "[ffmpeg] Extracting subtitle stream (global index: {}, subtitle index: {}, codec: {}) from {} to {}",
+            stream_index,
+            subtitle_specific_index,
+            codec,
+            video_path,
+            output_path
+        );
+
+        if matches!(
+            codec.as_str(),
+            "hdmv_pgs_subtitle" | "dvd_subtitle" | "xsub"
+        ) {
+            return Err(format!(
+                "Cannot extract subtitle: Codec '{}' cannot be converted to SRT. This is an image-based subtitle format (e.g., Blu-ray PGS or DVD VobSub).",
+                codec
+            ));
+        }
+
+        let command = self
+            .ffmpeg
+            .args(["-i", video_path])
+            .args(["-map", &format!("0:s:{}", subtitle_specific_index)])
+            .args(["-c:s", "srt"])
+            .arg(&output_path_buf)
+            .arg("-y")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        match SharedChild::spawn(command) {
+            Ok(child) => {
+                let cp = Arc::new(child);
+
+                match cp.wait() {
+                    Ok(exit_status) => {
+                        if exit_status.success() {
+                            if Path::exists(&output_path_buf) {
+                                Ok(output_path.to_string())
+                            } else {
+                                Err(String::from(
+                                    "Failed to extract subtitle: Output file was not created.",
+                                ))
+                            }
+                        } else {
+                            Err(format!("Failed to extract subtitle (exit code {}). The subtitle may be in an unsupported format.", exit_status))
+                        }
+                    }
+                    Err(err) => Err(format!("Failed to extract subtitle: {}", err)),
+                }
+            }
+            Err(err) => Err(format!("Failed to extract subtitle: {}", err)),
+        }
     }
 
     pub fn get_asset_dir(&self) -> String {

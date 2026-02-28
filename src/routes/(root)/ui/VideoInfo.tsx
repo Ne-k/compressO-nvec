@@ -1,15 +1,19 @@
 import { Tab } from '@heroui/react'
+import { save } from '@tauri-apps/plugin-dialog'
 import { motion } from 'framer-motion'
 import { startCase, upperCase } from 'lodash'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { useSnapshot } from 'valtio'
 
+import Button from '@/components/Button'
 import Code from '@/components/Code'
 import Divider from '@/components/Divider'
+import Icon from '@/components/Icon'
 import ScrollShadow from '@/components/ScrollShadow'
 import Spinner from '@/components/Spinner'
 import Tabs from '@/components/Tabs'
+import { extractSubtitle } from '@/tauri/commands/ffmpeg'
 import {
   getAudioStreams,
   getChapters,
@@ -187,6 +191,7 @@ function VideoInfo({ videoIndex }: VideoInfoProps) {
         {!loading && tab === 'subtitles' && videoInfoRaw?.subtitleStreams ? (
           <SubtitleStreamsDisplay
             streams={videoInfoRaw?.subtitleStreams as any}
+            videoPath={videoPathRaw}
           />
         ) : null}
       </ScrollShadow>
@@ -581,7 +586,25 @@ function AudioStreamsDisplay({ streams }: { streams: AudioStream[] }) {
   )
 }
 
-function SubtitleStreamsDisplay({ streams }: { streams: SubtitleStream[] }) {
+const UNSUPPORTED_SUBTITLE_CODECS = [
+  'hdmv_pgs_subtitle',
+  'dvd_subtitle',
+  'xsub',
+]
+
+function isSubtitleExtractable(codec: string): boolean {
+  return !UNSUPPORTED_SUBTITLE_CODECS.includes(codec)
+}
+
+function SubtitleStreamsDisplay({
+  streams,
+  videoPath,
+}: {
+  streams: SubtitleStream[]
+  videoPath?: string | null
+}) {
+  const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null)
+
   if (streams.length === 0) {
     return (
       <p className="text-center text-zinc-500 py-8">
@@ -590,84 +613,157 @@ function SubtitleStreamsDisplay({ streams }: { streams: SubtitleStream[] }) {
     )
   }
 
+  const handleDownload = async (stream: SubtitleStream, index: number) => {
+    if (!videoPath) {
+      toast.error('Video path not available')
+      return
+    }
+
+    setDownloadingIndex(index)
+
+    try {
+      const language = stream.language || 'unknown'
+      const defaultFileName = `subtitle_${language}_${stream.index}.srt`
+
+      const filePath = await save({
+        defaultPath: defaultFileName,
+        filters: [
+          {
+            name: 'Subtitle Files',
+            extensions: ['srt'],
+          },
+        ],
+      })
+
+      if (!filePath) {
+        setDownloadingIndex(null)
+        return
+      }
+
+      await extractSubtitle(videoPath, stream.index, filePath)
+
+      toast.success(`Subtitle extracted and saved.`)
+    } catch {
+      toast.error('Failed to extract subtitle.')
+    } finally {
+      setDownloadingIndex(null)
+    }
+  }
+
   return (
     <div className="space-y-6">
-      {streams.map((stream, index) => (
-        <motion.div
-          key={index}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.05 }}
-          className="space-y-4"
-        >
-          <h3 className="text-lg font-semibold text-zinc-700 dark:text-zinc-300">
-            Subtitle Stream {index + 1}
-          </h3>
-
-          <InfoItem
-            label="Codec"
-            value={`${stream.codec} (${stream.codecLongName})`}
-          />
-          <Divider className="my-3" />
-
-          {stream.language ? (
-            <>
-              <InfoItem label="Language" value={stream.language} />
-              <Divider className="my-3" />
-            </>
-          ) : null}
-
-          {stream.title ? (
-            <>
-              <InfoItem label="Title" value={stream.title} />
-              <Divider className="my-3" />
-            </>
-          ) : null}
-
-          {stream.disposition.default ||
-          stream.disposition.forced ||
-          stream.disposition.attached_pic ||
-          stream.disposition.comment ||
-          stream.disposition.karaoke ||
-          stream.disposition.lyrics ? (
-            <div>
-              <InfoItem label="Disposition" value=" " />
-              <div className="mt-2 space-y-1 ml-4">
-                {stream.disposition.default ? (
-                  <div className="text-zinc-600 dark:text-zinc-400 text-xs">
-                    - Default
-                  </div>
-                ) : null}
-                {stream.disposition.forced ? (
-                  <div className="text-zinc-600 dark:text-zinc-400 text-xs">
-                    - Forced
-                  </div>
-                ) : null}
-                {stream.disposition.attached_pic ? (
-                  <div className="text-zinc-600 dark:text-zinc-400 text-xs">
-                    - Attached Picture
-                  </div>
-                ) : null}
-                {stream.disposition.comment ? (
-                  <div className="text-zinc-600 dark:text-zinc-400 text-xs">
-                    - Comment
-                  </div>
-                ) : null}
-                {stream.disposition.karaoke ? (
-                  <div className="text-zinc-600 dark:text-zinc-400 text-xs">
-                    - Karaoke
-                  </div>
-                ) : null}
-                {stream.disposition.lyrics ? (
-                  <div className="text-zinc-600 dark:text-zinc-400 text-xs">
-                    - Lyrics
-                  </div>
-                ) : null}
-              </div>
+      {streams.map((stream, index) => {
+        const isExtractable = isSubtitleExtractable(stream.codec)
+        return (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05 }}
+            className="space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-primary">
+                Subtitle Stream {streams.length > 1 ? `${index + 1}` : ''}
+              </h3>
+              <Button
+                size="sm"
+                radius="lg"
+                onPress={() => handleDownload(stream, index)}
+                isDisabled={downloadingIndex === index || !isExtractable}
+                color={!isExtractable ? 'default' : undefined}
+              >
+                {downloadingIndex === index ? (
+                  <>
+                    <Spinner size="sm" />
+                    Downloading...
+                  </>
+                ) : !isExtractable ? (
+                  <>
+                    <Icon name="cross" />
+                    Unsupported
+                  </>
+                ) : (
+                  <>
+                    <Icon name="download" />
+                    Download
+                  </>
+                )}
+              </Button>
             </div>
-          ) : null}
-        </motion.div>
-      ))}
+
+            <InfoItem
+              label="Codec"
+              value={`${stream.codec} (${stream.codecLongName})`}
+            />
+            {!isExtractable && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                ⚠️ This subtitle format ({stream.codec}) cannot be converted to
+                SRT. It is likely an image-based format (e.g., Blu-ray PGS or
+                DVD VobSub).
+              </p>
+            )}
+            <Divider className="my-3" />
+
+            {stream.language ? (
+              <>
+                <InfoItem label="Language" value={stream.language} />
+                <Divider className="my-3" />
+              </>
+            ) : null}
+
+            {stream.title ? (
+              <>
+                <InfoItem label="Title" value={stream.title} />
+                <Divider className="my-3" />
+              </>
+            ) : null}
+
+            {stream.disposition.default ||
+            stream.disposition.forced ||
+            stream.disposition.attached_pic ||
+            stream.disposition.comment ||
+            stream.disposition.karaoke ||
+            stream.disposition.lyrics ? (
+              <div>
+                <InfoItem label="Disposition" value=" " />
+                <div className="mt-2 space-y-1 ml-4">
+                  {stream.disposition.default ? (
+                    <div className="text-zinc-600 dark:text-zinc-400 text-xs">
+                      - Default
+                    </div>
+                  ) : null}
+                  {stream.disposition.forced ? (
+                    <div className="text-zinc-600 dark:text-zinc-400 text-xs">
+                      - Forced
+                    </div>
+                  ) : null}
+                  {stream.disposition.attached_pic ? (
+                    <div className="text-zinc-600 dark:text-zinc-400 text-xs">
+                      - Attached Picture
+                    </div>
+                  ) : null}
+                  {stream.disposition.comment ? (
+                    <div className="text-zinc-600 dark:text-zinc-400 text-xs">
+                      - Comment
+                    </div>
+                  ) : null}
+                  {stream.disposition.karaoke ? (
+                    <div className="text-zinc-600 dark:text-zinc-400 text-xs">
+                      - Karaoke
+                    </div>
+                  ) : null}
+                  {stream.disposition.lyrics ? (
+                    <div className="text-zinc-600 dark:text-zinc-400 text-xs">
+                      - Lyrics
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </motion.div>
+        )
+      })}
     </div>
   )
 }

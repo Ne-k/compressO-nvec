@@ -40,6 +40,7 @@ export interface VideoPlayerProps extends BaseReactPlayerProps {
   playPauseOnSpaceKeydown?: boolean
   containerClassName?: ClassNameValue
   enableTimelinePlayer?: boolean
+  disableClosedCaptions?: boolean
 }
 
 const scales: TimelineScales = {
@@ -56,6 +57,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       playPauseOnSpaceKeydown,
       containerClassName,
       enableTimelinePlayer,
+      disableClosedCaptions,
       onProgress,
       onDuration,
       onPlay,
@@ -205,6 +207,19 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
         autoScrollCursorToCurrentTime(scales)
       }
     }, [enableTimelinePlayer, setTimelineTime, autoScrollCursorToCurrentTime])
+
+    useEffect(() => {
+      if (playerRef.current) {
+        const video = playerRef.current.getInternalPlayer()
+        if (video && video.textTracks) {
+          for (let i = 0; i < video.textTracks.length; i++) {
+            video.textTracks[i].mode = disableClosedCaptions
+              ? 'hidden'
+              : 'showing'
+          }
+        }
+      }
+    }, [disableClosedCaptions])
 
     useImperativeHandle(
       forwardedRef,

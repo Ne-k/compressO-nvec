@@ -260,8 +260,10 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
                 attributes: {
                   crossOrigin: 'anonymous',
                 },
+                tracks: [],
               },
             }}
+            disableClosedCaptions
             onError={() => {
               toast.warning('Switching to image thumbnail...')
               appProxy.state.videos[videoIndex].previewMode = 'image'

@@ -158,6 +158,7 @@ pub struct VideoCompressionConfig {
     pub custom_thumbnail_path: Option<String>,
     pub should_enable_custom_thumbnail: Option<bool>,
     pub trim_segments: Option<Vec<TrimSegment>>,
+    pub subtitles_config: Option<SubtitlesConfig>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -173,6 +174,22 @@ pub struct VideoMetadataConfig {
     pub genre: Option<String>,
     pub copyright: Option<String>,
     pub creation_time: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct SubtitleConfig {
+    pub subtitle_path: Option<String>,
+    pub language: String,
+    pub file_name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct SubtitlesConfig {
+    pub subtitles: Vec<SubtitleConfig>,
+    pub should_enable_subtitles: Option<bool>,
+    pub preserve_existing_subtitles: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -276,6 +293,7 @@ pub struct AudioStream {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SubtitleStream {
+    pub index: u32,
     pub codec: String,
     pub codec_long_name: String,
     pub codec_type: String,

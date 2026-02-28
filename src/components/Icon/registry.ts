@@ -6,6 +6,7 @@ import Back from '@/assets/icons/back.svg?react'
 import Copy from '@/assets/icons/copy.svg?react'
 import Cross from '@/assets/icons/cross.svg?react'
 import CurvedArrow from '@/assets/icons/curved-arrow.svg?react'
+import Download from '@/assets/icons/download.svg?react'
 import DragAndDrop from '@/assets/icons/drag-and-drop.svg?react'
 import Error from '@/assets/icons/error.svg?react'
 import Expand from '@/assets/icons/expand.svg?react'
@@ -76,6 +77,7 @@ const registry = asRegistry({
   image: Image,
   audioMuted: AudioMuted,
   audio: Audio,
+  download: Download,
 })
 
 export default registry

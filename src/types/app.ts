@@ -37,6 +37,18 @@ export type AudioConfig = {
   selectedAudioTracks?: readonly number[] | null
 }
 
+export type SubtitleConfig = {
+  subtitlePath: string | null
+  language: string
+  fileName: string | null
+}
+
+export type SubtitlesConfig = {
+  subtitles: SubtitleConfig[]
+  shouldEnableSubtitles?: boolean
+  preserveExistingSubtitles?: boolean
+}
+
 export type VideoConfig = {
   convertToExtension: keyof typeof extensions.video
   presetName: keyof typeof compressionPresets
@@ -70,6 +82,7 @@ export type VideoConfig = {
   customAudioCodec?: string
   shouldEnableAudioTrackSelection?: boolean
   selectedAudioTracks?: number[]
+  subtitlesConfig?: SubtitlesConfig | null
 }
 
 export type Video = {

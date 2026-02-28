@@ -15,7 +15,7 @@ import {
   appProxy,
   normalizeBatchVideosConfig,
   videoMetadataConfigInitialState,
-} from '../../-state'
+} from '../../../-state'
 
 type MetadataProps = {
   videoIndex: number
@@ -136,7 +136,7 @@ function Metadata({ videoIndex }: MetadataProps) {
     videos.length === 0 || isCompressing || isProcessCompleted || isLoadingFiles
 
   return (
-    <div className="mb-6">
+    <>
       <Switch
         isSelected={shouldPreserveMetadata}
         onValueChange={handlePreserveMetadataToggle}
@@ -326,7 +326,7 @@ function Metadata({ videoIndex }: MetadataProps) {
           </Card>
         ) : null}
       </AnimatePresence>
-    </div>
+    </>
   )
 }
 

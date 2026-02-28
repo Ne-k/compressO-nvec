@@ -9,9 +9,9 @@ use tauri_plugin_log::{Target as LogTarget, TargetKind as LogTargetKind};
 
 use lib::tauri_commands::{
     ffmpeg::{
-        __cmd__compress_video, __cmd__compress_videos_batch, __cmd__generate_video_thumbnail,
-        __cmd__get_video_info, compress_video, compress_videos_batch, generate_video_thumbnail,
-        get_video_info,
+        __cmd__compress_video, __cmd__compress_videos_batch, __cmd__extract_subtitle,
+        __cmd__generate_video_thumbnail, __cmd__get_video_info, compress_video,
+        compress_videos_batch, extract_subtitle, generate_video_thumbnail, get_video_info,
     },
     ffprobe::{
         __cmd__get_audio_streams, __cmd__get_chapters, __cmd__get_container_info,
@@ -246,6 +246,7 @@ async fn main() {
         .invoke_handler(tauri::generate_handler![
             compress_video,
             compress_videos_batch,
+            extract_subtitle,
             generate_video_thumbnail,
             get_video_info,
             get_image_dimension,

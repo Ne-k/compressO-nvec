@@ -6,6 +6,18 @@ import {
   VideoThumbnail,
 } from '@/types/compression'
 
+export function extractSubtitle(
+  videoPath: string,
+  streamIndex: number,
+  outputPath: string,
+): Promise<string> {
+  return core.invoke('extract_subtitle', {
+    videoPath,
+    streamIndex,
+    outputPath,
+  })
+}
+
 export function compressVideos(
   batchId: string,
   videos: VideoCompressionConfig[],

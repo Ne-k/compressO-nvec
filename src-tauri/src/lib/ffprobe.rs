@@ -848,7 +848,7 @@ impl FFPROBE {
                 "-select_streams",
                 "s",
                 "-show_entries",
-                "stream=codec_name,codec_long_name,codec_type:stream_tags:stream_disposition",
+                "stream=index,codec_name,codec_long_name,codec_type:stream_tags:stream_disposition",
                 "-of",
                 "json",
                 path,
@@ -897,6 +897,11 @@ impl FFPROBE {
                             {
                                 let mut result = Vec::new();
                                 for stream in streams_array {
+                                    let index = stream
+                                        .get("index")
+                                        .and_then(|i| i.as_u64())
+                                        .unwrap_or(0) as u32;
+
                                     let codec = stream
                                         .get("codec_name")
                                         .and_then(|c| c.as_str())
@@ -971,6 +976,7 @@ impl FFPROBE {
                                         };
 
                                     result.push(SubtitleStream {
+                                        index,
                                         codec,
                                         codec_long_name,
                                         codec_type,

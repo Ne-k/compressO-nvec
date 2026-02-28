@@ -37,6 +37,10 @@ export const videoConfigInitialState: VideoConfig = {
   isVideoTrimEditMode: false,
   shouldEnableCustomChannel: false,
   shouldEnableCustomBitrate: false,
+  subtitlesConfig: {
+    subtitles: [],
+    shouldEnableSubtitles: false,
+  },
 }
 
 const appInitialState: App = {

@@ -26,7 +26,7 @@ import AudioVolume from './AudioVolume'
 import CompressionPreset from './CompressionPreset'
 import CompressionQuality from './CompressionQuality'
 import CustomThumbnail from './CustomThumbnail'
-import Metadata from './Metadata'
+import Others from './Others/-index'
 import TransformVideo from './TransformVideo'
 import TrimVideo from './TrimVideo'
 import VideoCodec from './VideoCodec'
@@ -51,9 +51,9 @@ const TABS = {
     id: 'audio',
     title: 'Audio',
   },
-  metadata: {
-    id: 'metadata',
-    title: 'Metadata',
+  others: {
+    id: 'others',
+    title: 'Others',
   },
 } as const
 
@@ -182,6 +182,24 @@ function OutputSettings({ videoIndex }: OutputSettingsProps) {
                       end: action.end,
                     }),
                   ) as TrimSegment[])
+              : null,
+          subtitlesConfig:
+            v.config?.convertToExtension !== 'webm' &&
+            ((v.config?.subtitlesConfig?.shouldEnableSubtitles &&
+              v.config?.subtitlesConfig?.subtitles?.length > 0) ||
+              v.config?.subtitlesConfig?.preserveExistingSubtitles === true)
+              ? {
+                  subtitles:
+                    v.config.subtitlesConfig?.subtitles?.map((s) => ({
+                      subtitlePath: s.subtitlePath ?? null,
+                      language: s.language || 'eng',
+                      fileName: s.fileName ?? null,
+                    })) ?? [],
+                  shouldEnableSubtitles:
+                    v.config.subtitlesConfig.shouldEnableSubtitles ?? false,
+                  preserveExistingSubtitles:
+                    v.config.subtitlesConfig.preserveExistingSubtitles,
+                }
               : null,
         })),
       )
@@ -333,9 +351,9 @@ function OutputSettings({ videoIndex }: OutputSettingsProps) {
               ) : null}
             </>
           ) : null}
-          {tab === 'metadata' ? (
+          {tab === 'others' ? (
             <>
-              <Metadata videoIndex={videoIndex} />
+              <Others videoIndex={videoIndex} />
             </>
           ) : null}
         </ScrollShadow>
