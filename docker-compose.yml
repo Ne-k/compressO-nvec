@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  compresso:
+    build: .
+    ports:
+      - "4173:4173"
+    environment:
+      PORT: "4173"
+      VITE_SERVER_MODE: "true"
+      VITE_SERVER_API: ""
+    volumes:
+      - ./server-data:/app/server-data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    # For non-swarm docker compose, ensure Docker has GPU support enabled.
+    # Alternatively: docker compose run --gpus all compresso

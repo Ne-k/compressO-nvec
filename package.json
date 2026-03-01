@@ -19,6 +19,7 @@
     "tauri:build:mac:arm64": "tauri build --target aarch64-apple-darwin",
     "tauri:build:mac:x64": "tauri build --target x86_64-apple-darwin",
     "tauri:build:mac": "pnpm tauri:build:mac:arm64 && pnpm tauri:build:mac:x64",
+    "server:start": "node server/index.js",
     "homebrew:release": "./scripts/homebrew-release.sh",
     "pnpm:devPreinstall": "fnm use",
     "postinstall": "husky install",
@@ -26,6 +27,7 @@
     "tsc:check": "tsc --noEmit --skipLibCheck"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "@heroui/react": "2.7.11",
     "@heroui/use-theme": "^2.1.2",
     "@internationalized/date": "^3.10.1",
@@ -38,6 +40,8 @@
     "@tauri-apps/plugin-shell": "2.0.0",
     "@xzdarcy/react-timeline-editor": "^0.1.9",
     "@xzdarcy/timeline-engine": "^1.0.0",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
     "clsx": "^2.0.0",
     "framer-motion": "11.18.2",
     "lodash": "^4.17.21",

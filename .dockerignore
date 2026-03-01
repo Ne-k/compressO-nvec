@@ -1,0 +1,15 @@
+node_modules
+.dist
+.git
+.gitignore
+Dockerfile
+server-data
+target
+src-tauri/target
+src-tauri/gen
+pnpm-lock.yaml
+pnpm-store
+npm-debug.log
+yarn-error.log
+.tmp
+.DS_Store

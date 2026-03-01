@@ -6,6 +6,7 @@ import { useEffect } from 'react'
 import { Toaster } from '@/components/Toast'
 import Titlebar from '@/tauri/components/Titlebar'
 import { getPlatform } from '@/utils/fs'
+import { runtime } from '@/utils/runtime'
 import UIProvider from '../providers/UIProvider'
 
 export const Route = createRootRoute({
@@ -18,13 +19,15 @@ const { isMacOS } = getPlatform()
 
 function RootComponent() {
   useEffect(() => {
-    event.emit('frontend-ready')
+    if (!runtime.isServerMode) {
+      event.emit('frontend-ready')
+    }
   }, [])
 
   return (
     <>
       <UIProvider className={isMacOS ? 'pt-4' : ''}>
-        {isMacOS ? <Titlebar /> : null}
+        {isMacOS && !runtime.isServerMode ? <Titlebar /> : null}
         <Outlet />
       </UIProvider>
       <Toaster />

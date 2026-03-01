@@ -15,7 +15,9 @@ import { getVideoInfo } from '@/tauri/commands/ffprobe'
 import { getFileMetadata } from '@/tauri/commands/fs'
 import { extensions } from '@/types/compression'
 import { formatBytes } from '@/utils/fs'
+import { runtime } from '@/utils/runtime'
 import { appProxy, videoConfigInitialState } from './-state'
+import ServerApp from './ServerApp'
 import Setting from './ui/app-settings/Setting'
 import DragAndDrop from './ui/DragAndDrop'
 import OpenWithApp from './ui/OpenWithApp'
@@ -31,6 +33,10 @@ function Root() {
   const { state, resetProxy } = useSnapshot(appProxy)
 
   const { videos, isLoadingFiles, totalSelectedFilesCount } = state
+
+  if (runtime.isServerMode) {
+    return <ServerApp />
+  }
 
   const handleVideoSelection = React.useCallback(
     async (path: string | string[]) => {

@@ -67,6 +67,17 @@ brew install --cask codeforreal1/tap/compresso
 This app is created using [Tauri](https://tauri.app/), a Rust🦀 framework for building a cross-platform desktop app. It uses [Vite](https://vite.dev/) as a frontend layer. The compression is done entirely by [FFmpeg](https://ffmpeg.org/) using platform specific standalone binaries.
 The app works completely offline and no any network requests is made to/from the app.
 
+### Headless Ubuntu (Web UI + GPU)
+
+The repo now ships a headless mode for Ubuntu servers. It serves the same UI over HTTP and uses the server's NVIDIA GPU (NVENC) when available.
+
+Steps:
+- Install FFmpeg with NVENC support and NVIDIA drivers (`nvidia-smi` should work). The server expects `ffmpeg`/`ffprobe` on PATH.
+- Build the web UI for server mode: `VITE_SERVER_MODE=true pnpm vite:build`.
+- Start the headless server: `pnpm server:start` (set `PORT` if you do not want the default `4173`).
+- Open `http://<server-host>:PORT` and use the drag-and-drop uploader. Files are stored under `server-data/`, and outputs are downloadable from the UI.
+- Optional: set `VITE_SERVER_API` if you are proxying the API under a different origin/path.
+
 ### FAQs
 <details>
 <summary>
