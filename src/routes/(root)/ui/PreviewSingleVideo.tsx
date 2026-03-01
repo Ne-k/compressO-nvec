@@ -237,6 +237,11 @@ function PreviewSingleVideo({ videoIndex }: PreviewSingleVideoProps) {
       >
         {compressionProgress?.toFixed(2)}%
       </p>
+      {video?.compressionEta ? (
+        <p className="text-sm text-gray-700 dark:text-gray-300 text-center">
+          ETA {video.compressionEta}
+        </p>
+      ) : null}
     </motion.div>
   )
 }

@@ -276,6 +276,11 @@ function PreviewBatchVideos() {
                             }}
                             aria-label="Processing"
                           />
+                          {video.compressionEta ? (
+                            <div className="absolute left-1/2 bottom-3 z-20 -translate-x-1/2 text-white text-[11px] font-semibold drop-shadow">
+                              ETA {video.compressionEta}
+                            </div>
+                          ) : null}
                           <div className="absolute inset-0 bg-black/70 z-10 rounded-lg"></div>
                         </>
                       ) : null}

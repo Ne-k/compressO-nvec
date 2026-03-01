@@ -32,6 +32,18 @@ const VIDEO_CODECS: readonly VideoCodecOption[] = [
     compatible_containers: ['mp4', 'mov', 'mkv'] as VideoExtension[],
   },
   {
+    value: 'h264_nvenc',
+    name: 'H.264 (NVENC)',
+    description: 'NVIDIA GPU accelerated, fast',
+    compatible_containers: ['mp4', 'mov', 'mkv', 'avi'] as VideoExtension[],
+  },
+  {
+    value: 'hevc_nvenc',
+    name: 'H.265 (NVENC)',
+    description: 'NVIDIA GPU accelerated HEVC',
+    compatible_containers: ['mp4', 'mov', 'mkv'] as VideoExtension[],
+  },
+  {
     value: 'libvpx-vp9',
     name: 'VP9',
     description: 'Open-source, great for web',

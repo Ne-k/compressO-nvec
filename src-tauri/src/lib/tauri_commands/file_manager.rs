@@ -48,7 +48,7 @@ pub fn show_item_in_file_manager(path: String, dbus_state: State<DbusState>) -> 
 #[cfg(not(target_os = "linux"))]
 #[tauri::command]
 pub fn show_item_in_file_manager(path: String) -> Result<(), String> {
-    use std::{path::PathBuf, process::Command};
+    use std::process::Command;
     #[cfg(target_os = "windows")]
     {
         Command::new("explorer")

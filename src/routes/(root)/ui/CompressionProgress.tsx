@@ -12,6 +12,17 @@ import { formatBytes } from '@/utils/fs'
 import { convertDurationToMilliseconds } from '@/utils/string'
 import { appProxy } from '../-state'
 
+function formatMsToHms(ms: number): string {
+  const clamped = Math.max(ms, 0)
+  const totalSeconds = Math.floor(clamped / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return `${hours.toString().padStart(2, '0')}:${minutes
+    .toString()
+    .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+}
+
 async function updateDockProgress() {
   const videos = snapshot(appProxy).state.videos
   if (videos.length === 0) return
@@ -95,6 +106,14 @@ function CompressionProgress() {
                         (currentDurationInMilliseconds * 100) /
                         videoDurationInMilliseconds
 
+                      const remainingMs =
+                        videoDurationInMilliseconds -
+                        currentDurationInMilliseconds
+                      const etaFromProgress = formatMsToHms(remainingMs)
+
+                      appProxy.state.videos[targetVideoIndex].compressionEta =
+                        payload?.eta ?? etaFromProgress
+
                       updateDockProgress()
                     }
                   }
@@ -124,6 +143,7 @@ function CompressionProgress() {
                   appProxy.state.videos[targetVideoIndex].isCompressing = false
                   appProxy.state.videos[targetVideoIndex].compressionProgress =
                     100
+                  appProxy.state.videos[targetVideoIndex].compressionEta = null
                   appProxy.state.videos[targetVideoIndex].compressedVideo = {
                     isSuccessful: true,
                     fileName: fileMetadata?.fileName,

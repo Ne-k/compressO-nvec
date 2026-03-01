@@ -6,6 +6,7 @@ use crate::domain::{
 };
 use crate::ffprobe::FFPROBE;
 use crate::fs::get_file_metadata;
+use crate::sys::gpu::{detect_gpu, GpuType};
 use crossbeam_channel::{Receiver, Sender};
 use nanoid::nanoid;
 use regex::Regex;
@@ -30,6 +31,37 @@ pub struct FFMPEG {
 const EXTENSIONS: [&str; 5] = ["mp4", "mov", "webm", "avi", "mkv"];
 
 impl FFMPEG {
+    fn parse_ffmpeg_time_to_seconds(time_str: &str) -> Option<f64> {
+        // Expected format HH:MM:SS.mmmmmm from ffmpeg progress
+        let parts: Vec<&str> = time_str.trim().split(':').collect();
+        if parts.len() != 3 {
+            return None;
+        }
+
+        let hours = parts[0].parse::<f64>().ok()?;
+        let minutes = parts[1].parse::<f64>().ok()?;
+        let seconds = parts[2].parse::<f64>().ok()?;
+
+        Some(hours * 3600.0 + minutes * 60.0 + seconds)
+    }
+
+    fn format_seconds_to_hms(seconds: f64) -> String {
+        let total_seconds = if seconds < 0.0 { 0.0 } else { seconds };
+        let hours = (total_seconds / 3600.0).floor() as u64;
+        let minutes = ((total_seconds % 3600.0) / 60.0).floor() as u64;
+        let secs = (total_seconds % 60.0).floor() as u64;
+        format!("{:02}:{:02}:{:02}", hours, minutes, secs)
+    }
+
+    async fn video_duration_seconds(app: &tauri::AppHandle, video_path: &str) -> Option<f64> {
+        let mut ffprobe = FFPROBE::new(app).ok()?;
+        let streams = ffprobe.get_video_streams(video_path).await.ok()?;
+        streams
+            .first()
+            .and_then(|s| s.duration.as_ref())
+            .and_then(|d| d.parse::<f64>().ok())
+    }
+
     pub fn new(app: &tauri::AppHandle) -> Result<Self, String> {
         match app.shell().sidecar("compresso_ffmpeg") {
             Ok(command) => {
@@ -176,6 +208,9 @@ impl FFMPEG {
             "error",
         ]);
 
+        let gpu_type = detect_gpu();
+        let is_nvidia_gpu = matches!(gpu_type, Some(GpuType::Nvidia));
+
         let mut cmd_args = match preset_name {
             Some(preset) => match preset {
                 "thunderbolt" => cmd_args,
@@ -183,12 +218,8 @@ impl FFMPEG {
                     cmd_args.extend_from_slice(&[
                         "-pix_fmt:v:0",
                         "yuv420p",
-                        "-b:v:0",
-                        "0",
                         "-movflags",
                         "+faststart",
-                        "-preset",
-                        "slow",
                     ]);
                     cmd_args
                 }
@@ -197,11 +228,18 @@ impl FFMPEG {
         };
 
         // Codec
+        let prefer_nvenc_default = is_nvidia_gpu && convert_to_extension != "webm";
         let output_codec: String = {
-            fn default_codec(convert_to_extension: &str) -> String {
+            fn default_codec(convert_to_extension: &str, prefer_nvenc: bool) -> String {
                 match convert_to_extension {
                     "webm" => "libvpx-vp9".to_string(),
-                    _ => "libx264".to_string(),
+                    _ => {
+                        if prefer_nvenc {
+                            "h264_nvenc".to_string()
+                        } else {
+                            "libx264".to_string()
+                        }
+                    }
                 }
             }
             if let Some(codec) = video_codec {
@@ -215,13 +253,25 @@ impl FFMPEG {
 
                     match source_streams.first() {
                         Some(stream) => stream.codec.clone(),
-                        None => default_codec(convert_to_extension),
+                        None => default_codec(convert_to_extension, prefer_nvenc_default),
                     }
                 } else {
-                    default_codec(convert_to_extension)
+                    default_codec(convert_to_extension, prefer_nvenc_default)
                 }
             }
         };
+        let is_nvenc_codec = output_codec.ends_with("_nvenc");
+        if is_nvenc_codec && !is_nvidia_gpu {
+            return Err(String::from(
+                "NVENC codec selected but no NVIDIA GPU was detected on this system.",
+            ));
+        }
+
+        if let Some(preset) = preset_name {
+            if preset != "thunderbolt" && !is_nvenc_codec {
+                cmd_args.extend_from_slice(&["-b:v:0", "0"]);
+            }
+        }
         cmd_args.extend_from_slice(&["-c:v:0", output_codec.as_str()]);
 
         // Quality
@@ -235,7 +285,29 @@ impl FFMPEG {
             format!("{default_crf}")
         };
         if preset_name.is_some() || (0..=100).contains(&quality) {
-            cmd_args.extend_from_slice(&["-crf", compression_quality.as_str()]);
+            if is_nvenc_codec {
+                let max_cq: u16 = 28;
+                let min_cq: u16 = 16;
+                let default_cq: u16 = 21;
+                let nvenc_quality = if (0..=100).contains(&quality) {
+                    let diff = (max_cq - min_cq) - ((max_cq - min_cq) * quality) / 100;
+                    format!("{}", min_cq + diff)
+                } else {
+                    format!("{default_cq}")
+                };
+
+                cmd_args.extend_from_slice(&["-rc:v", "vbr"]);
+                let nvenc_quality_static: &'static str = Box::leak(nvenc_quality.into_boxed_str());
+                cmd_args.extend_from_slice(&["-cq", nvenc_quality_static]);
+                cmd_args.extend_from_slice(&["-preset", "medium"]);
+            } else {
+                cmd_args.extend_from_slice(&["-crf", compression_quality.as_str()]);
+                if let Some(preset) = preset_name {
+                    if preset != "thunderbolt" {
+                        cmd_args.extend_from_slice(&["-preset", "slow"]);
+                    }
+                }
+            }
         }
 
         // Transforms
@@ -757,15 +829,26 @@ impl FFMPEG {
                 });
 
                 let app_clone = self.app.clone();
+                let video_path_owned = video_path.to_string();
                 tokio::spawn(async move {
                     let file_name_clone_str = file_name_clone.as_str();
+                    let total_duration_secs = Self::video_duration_seconds(&app_clone, &video_path_owned)
+                        .await;
 
                     while let Ok(current_duration) = rx.recv() {
+                        let eta = total_duration_secs.and_then(|total| {
+                            Self::parse_ffmpeg_time_to_seconds(&current_duration).map(|current| {
+                                let remaining = (total - current).max(0.0);
+                                Self::format_seconds_to_hms(remaining)
+                            })
+                        });
+
                         let video_progress = VideoCompressionProgress {
                             video_id: String::from(video_id_clone2.clone()),
                             batch_id: batch_id_clone2.clone(),
                             file_name: String::from(file_name_clone_str),
                             current_duration,
+                            eta,
                         };
                         if let Some(window) = app_clone.get_webview_window("main") {
                             window

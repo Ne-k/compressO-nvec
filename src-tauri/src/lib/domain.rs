@@ -35,6 +35,7 @@ pub struct VideoCompressionProgress {
     pub batch_id: String,
     pub file_name: String,
     pub current_duration: String,
+    pub eta: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

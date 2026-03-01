@@ -114,6 +114,7 @@ export type Video = {
     savedPath?: string
   } | null
   compressionProgress?: number
+  compressionEta?: string | null
   config: VideoConfig
   isConfigDirty?: boolean
   dimensions?: { width: number; height: number }

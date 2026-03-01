@@ -29,6 +29,7 @@ export type VideoCompressionProgress = {
   batchId: string
   fileName: string
   currentDuration: string
+  eta?: string | null
 }
 export type BatchCompressionIndividualCompressionResult = {
   batchId: string
