@@ -234,7 +234,7 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
                 if (currentTime) {
                   setTimelineTime(currentTime)
                   autoScrollCursorToCurrentTime(scales, {
-                    realtime: true,
+                    onlyOnOutOfView: false,
                   })
                 }
               }
@@ -333,13 +333,13 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
               }
             }}
             onPlay={() => {
-              autoScrollCursorToCurrentTime(scales, {
-                realtime: true,
-              })
+              setTimeout(() => {
+                autoScrollCursorToCurrentTime(scales)
+              }, 100)
             }}
             onArrowKeySeek={() => {
               autoScrollCursorToCurrentTime(scales, {
-                realtime: true,
+                onlyOnOutOfView: false,
                 smoothScrolling: true,
               })
             }}
@@ -414,10 +414,6 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
                       trimRow.actions
                   }
                 }, 250)
-              }}
-              onActionMoving={({ end }) => {
-                seekPlayerTo(end, false)
-                setTimelineTime(end)
               }}
             />
           </div>

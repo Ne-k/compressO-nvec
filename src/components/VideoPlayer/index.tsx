@@ -16,7 +16,7 @@ import { ClassNameValue } from 'tailwind-merge'
 import { cn } from '@/utils/tailwind'
 import Button from '../Button'
 import Icon from '../Icon'
-import { BoundaryRowActionRender } from '../Timeline'
+import { BoundaryRowActionRender, ScaleRender } from '../Timeline'
 import useTimelineEngine, {
   TimelineScales,
 } from '../Timeline/useTimelineEngine'
@@ -87,6 +87,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
     const playPauseButtonRef = useRef<HTMLButtonElement | null>(null)
     const lastCapturedVideoFrame = useRef<string | null>(null)
     const timelinePlayerRef = useRef<TimelineState | null>(null)
+    const playPauseButtonRefIntervalId = useRef<NodeJS.Timeout | null>(null)
 
     const {
       refreshTimeline,
@@ -165,7 +166,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
             const newTime = Math.min(currentTime + SEEK_DURATION, duration)
             playerRef.current.seekTo(newTime, 'seconds')
             autoScrollCursorToCurrentTime(scales, {
-              realtime: true,
+              onlyOnOutOfView: false,
               smoothScrolling: true,
             })
             onArrowKeySeek?.('right')
@@ -177,9 +178,10 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
             const newTime = Math.max(currentTime - SEEK_DURATION, 0)
             playerRef.current.seekTo(newTime, 'seconds')
             autoScrollCursorToCurrentTime(scales, {
-              realtime: true,
+              onlyOnOutOfView: false,
               smoothScrolling: true,
             })
+
             onArrowKeySeek?.('left')
           }
         }
@@ -297,7 +299,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
     useEffect(() => {
       if (enableTimelinePlayer && timelinePlayerRef.current) {
         autoScrollCursorToCurrentTime(scales, {
-          realtime: true,
+          onlyOnOutOfView: false,
         })
       }
     }, [enableTimelinePlayer])
@@ -307,6 +309,27 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
         toggleClosedCaptions(disableClosedCaptions)
       }
     }, [disableClosedCaptions, toggleClosedCaptions])
+
+    useEffect(() => {
+      if (isPlaying && playPauseButtonRef.current) {
+        if (playPauseButtonRefIntervalId.current) {
+          clearInterval(playPauseButtonRefIntervalId.current)
+        }
+        playPauseButtonRefIntervalId.current = setInterval(() => {
+          if (playPauseButtonRef.current) {
+            playPauseButtonRef.current.style.visibility = 'hidden'
+          }
+        }, 3000)
+      } else {
+        clearInterval(playPauseButtonRefIntervalId.current!)
+        if (playPauseButtonRef.current) {
+          playPauseButtonRef.current.style.visibility = 'visible'
+        }
+      }
+      return () => {
+        clearInterval(playPauseButtonRefIntervalId.current!)
+      }
+    }, [isPlaying])
 
     useImperativeHandle(
       forwardedRef,
@@ -351,9 +374,9 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
             onPlay={() => {
               setIsPlaying(true)
               onPlay?.()
-              autoScrollCursorToCurrentTime(scales, {
-                realtime: true,
-              })
+              setTimeout(() => {
+                autoScrollCursorToCurrentTime(scales)
+              }, 100)
             }}
             onPause={() => {
               setIsPlaying(false)
@@ -388,7 +411,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
             onPress={togglePlayPause}
             isIconOnly
             radius="full"
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2  bg-black/30 hover:bg-black/40 transition-colors cursor-pointer"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2  bg-black/30 cursor-pointer"
           >
             <Icon
               name={isPlaying ? 'pause' : 'play'}
@@ -451,6 +474,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
                 return <BoundaryRowActionRender action={action} row={row} />
               }
             }}
+            getScaleRender={(scale) => <ScaleRender scale={scale} />}
             onCursorDrag={(time) => {
               if (playerRef.current) {
                 playerRef.current.seekTo(time, 'seconds')

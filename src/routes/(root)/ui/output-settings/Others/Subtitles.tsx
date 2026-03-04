@@ -257,7 +257,7 @@ function Subtitles({ videoIndex }: SubtitlesProps) {
           </Switch>
         </div>
         {shouldEnableSubtitles ? (
-          <Card className="px-2 py-1 my-3 pb-4">
+          <Card className="px-2 my-2 pb-4 shadow-none border-1 dark:border-none">
             <motion.div {...slideDownTransition} className="mt-2">
               <div className="flex items-center gap-2 mb-3">
                 <Switch
@@ -284,7 +284,7 @@ function Subtitles({ videoIndex }: SubtitlesProps) {
                       key={`${subtitle.subtitlePath}-${index}`}
                       layout
                       variants={slideDownStaggerAnimation.item}
-                      className="mb-2 p-3 bg-default-100 dark:bg-default-50 rounded-xl border border-default-200 dark:border-default-100"
+                      className="mb-2 p-3 bg-default-50 rounded-xl border border-default-200 dark:border-default-100"
                     >
                       <div className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate mb-2 text-center">
                         {subtitle.fileName || `Subtitle ${index + 1}`}
