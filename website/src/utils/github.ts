@@ -20,7 +20,10 @@ export async function getLatestRelease(): Promise<GitHubRelease> {
   );
 
   if (!response.ok) {
-    throw new Error(`GitHub API error: ${response.statusText}`);
+    if (import.meta.env.PROD) {
+      throw new Error("Failed to fetch latest release from GitHub.");
+    }
+    return {} as any
   }
 
   return response.json();
@@ -71,4 +74,21 @@ export function getDownloadAssets(version: string): DownloadAssets {
       x64: `${baseUrl}/CompressO_${version}_x64.exe`,
     },
   };
+}
+
+export async function fetchGitHubStars(): Promise<number | undefined> {
+  const response = await fetch(
+    "https://api.github.com/repos/codeforreal1/compressO",
+  );
+
+  if (!response.ok) {
+    if (import.meta.env.PROD) {
+      throw new Error("Failed to fetch latest stars from GitHub.");
+    }
+    return undefined;
+  }
+
+  const data = await response.json();
+  const stars = data.stargazers_count;
+  return stars;
 }

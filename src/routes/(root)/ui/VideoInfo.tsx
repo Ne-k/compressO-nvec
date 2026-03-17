@@ -273,8 +273,8 @@ function ContainerInfoDisplay({ info }: { info: ContainerInfo }) {
 
       {info.tags && info.tags.length > 0 ? (
         <div>
-          <InfoItem label="Tags" value=" " />
-          <div className="mt-2 space-y-2 mx-10">
+          <InfoItem label="Metadata Tags" value=" " />
+          <div className="mt-2 space-y-2 mx-4">
             {info.tags.map(([key, value]) => (
               <div key={key}>
                 <p className="font-bold text-zinc-600 dark:text-zinc-400 text-[13px]">
@@ -572,8 +572,8 @@ function AudioStreamsDisplay({ streams }: { streams: AudioStream[] }) {
 
           {stream.tags && stream.tags.length > 0 ? (
             <div>
-              <InfoItem label="Tags" value=" " />
-              <div className="mt-2 space-y-2 mx-10">
+              <InfoItem label="Metadata Tags" value=" " />
+              <div className="mt-2 space-y-2 mx-4">
                 {stream.tags.map(([key, value]) => (
                   <div key={key}>
                     <span className="font-medium text-zinc-600 dark:text-zinc-400 text-[13px]">

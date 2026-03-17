@@ -171,8 +171,10 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
             (playerRef.current || trimmerRef.current) &&
             videoSnapshot.config.isVideoTransformEditMode
           ) {
+            if (playerRef.current) {
+              playerRef.current.pauseVideo()
+            }
             const { pathRaw: videoPathRaw } = videoSnapshot
-
             const currentTime = playerRef.current
               ? playerRef.current.playerRef?.getCurrentTime?.()
               : trimmerRef.current?.getTime?.()
@@ -233,7 +235,9 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
                   playerRef?.current?.playerRef?.getCurrentTime?.()
                 if (currentTime) {
                   setTimelineTime(currentTime)
-                  autoScrollCursorToCurrentTime(scales, true)
+                  autoScrollCursorToCurrentTime(scales, {
+                    onlyOnOutOfView: false,
+                  })
                 }
               }
             }, 100)
@@ -331,10 +335,15 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
               }
             }}
             onPlay={() => {
-              autoScrollCursorToCurrentTime(scales, true)
+              setTimeout(() => {
+                autoScrollCursorToCurrentTime(scales)
+              }, 100)
             }}
             onArrowKeySeek={() => {
-              autoScrollCursorToCurrentTime(scales, true)
+              autoScrollCursorToCurrentTime(scales, {
+                onlyOnOutOfView: false,
+                smoothScrolling: true,
+              })
             }}
           />
         ) : (
@@ -407,10 +416,6 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
                       trimRow.actions
                   }
                 }, 250)
-              }}
-              onActionMoving={({ end }) => {
-                seekPlayerTo(end, false)
-                setTimelineTime(end)
               }}
             />
           </div>

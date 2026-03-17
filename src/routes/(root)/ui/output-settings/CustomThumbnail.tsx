@@ -120,7 +120,7 @@ function CustomThumbnail({ videoIndex }: CustomThumbnailProps) {
             size="sm"
           >
             <div className="flex justify-center items-center">
-              <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm">
+              <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm font-bold">
                 Thumbnail{' '}
               </span>
             </div>

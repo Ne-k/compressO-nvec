@@ -5,10 +5,12 @@ import sitemap from '@astrojs/sitemap'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'astro/config'
 
+import react from '@astrojs/react';
+
 export default defineConfig({
   base: '/',
   site: 'https://compresso.codeforreal.com',
-  integrations: [mdx(), sitemap()],
+  integrations: [mdx(), sitemap(), react()],
   output: 'static',
   outDir: 'dist',
   vite: {

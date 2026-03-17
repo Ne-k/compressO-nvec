@@ -1,5 +1,5 @@
 import { TimelineState } from '@xzdarcy/react-timeline-editor'
-import React, { useEffect } from 'react'
+import React, { useCallback, useEffect } from 'react'
 
 type UseEngineProps = {
   timelineState: React.RefObject<TimelineState>
@@ -26,6 +26,8 @@ function useTimelineEngine({
   onSeek,
   onTimeChange,
 }: UseEngineProps) {
+  const disableAnimationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: <>
   useEffect(() => {
     if (!timelineState.current) return
@@ -51,39 +53,65 @@ function useTimelineEngine({
     }
   }, [timelineState.current])
 
-  const autoScrollCursorToCurrentTime = (
-    scales: TimelineScales,
-    realtime = false,
-  ) => {
-    if (!timelineState.current) return
+  const autoScrollCursorToCurrentTime = useCallback(
+    (
+      scales: TimelineScales,
+      options: { onlyOnOutOfView?: boolean; smoothScrolling?: boolean } = {
+        onlyOnOutOfView: true,
+        smoothScrolling: false,
+      },
+    ) => {
+      if (!timelineState.current) return
 
-    const target = timelineState.current.target
-    if (!target) return
-
-    const currentTime = timelineState.current.getTime()
-
-    if (realtime) {
-      const { width } = timelineState.current.target.getBoundingClientRect()
-      const currentTime = timelineState.current.getTime()
-      const left =
-        currentTime * (scales.scaleWidth / scales.scale) +
-        scales.startLeft -
-        width / 2
-      timelineState.current.setScrollLeft(left)
-    } else {
-      const width = target.clientWidth
-      const scrollLeft = target.scrollLeft
-      const cursorX =
-        currentTime * (scales.scaleWidth / scales.scale) + scales.startLeft
-      const viewEnd = scrollLeft + width
-
-      if (Math.floor(cursorX) % Math.floor(viewEnd) === 0) {
-        timelineState.current.setScrollLeft(cursorX)
+      function manageSmoothScrolling() {
+        if (options.smoothScrolling) {
+          const target = timelineState.current?.target
+          if (!target) return
+          target.classList.add('enable-smooth-scrolling')
+          if (disableAnimationTimeoutRef.current) {
+            clearTimeout(disableAnimationTimeoutRef.current)
+          }
+          disableAnimationTimeoutRef.current = setTimeout(() => {
+            target.classList.remove('enable-smooth-scrolling')
+          }, 250)
+        }
       }
-    }
-  }
 
-  const playOrPause = () => {
+      const target = timelineState.current.target
+      if (!target) return
+
+      const currentTime = timelineState.current.getTime()
+
+      const { width: timelineWidth, x: timelineX } =
+        timelineState.current.target.getBoundingClientRect()
+      if (options.onlyOnOutOfView) {
+        const { x: cursorX } = timelineState.current.target
+          .querySelector(':scope > .timeline-editor-cursor')
+          ?.getBoundingClientRect() || { x: 0 }
+
+        const isCursorOutOfView =
+          timelineWidth - (cursorX - timelineX) < 0 ||
+          timelineWidth - (cursorX - timelineX) > timelineWidth
+
+        if (isCursorOutOfView) {
+          const left =
+            currentTime * (scales.scaleWidth / scales.scale) + scales.startLeft
+          manageSmoothScrolling()
+          timelineState.current.setScrollLeft(left)
+        }
+      } else {
+        const left =
+          currentTime * (scales.scaleWidth / scales.scale) +
+          scales.startLeft -
+          timelineWidth / 2
+        manageSmoothScrolling()
+        timelineState.current.setScrollLeft(left)
+      }
+    },
+    [timelineState.current],
+  )
+
+  const playOrPause = useCallback(() => {
     if (!timelineState.current) return
     if (timelineState.current.isPlaying) {
       timelineState.current.pause()
@@ -94,34 +122,43 @@ function useTimelineEngine({
       }
       timelineState.current.play({ autoEnd: false, toTime: totalDuration })
     }
-  }
+  }, [timelineState.current, totalDuration])
 
-  const restart = () => {
+  const restart = useCallback(() => {
     if (!timelineState.current) return
     timelineState.current.setTime(0)
-  }
+  }, [timelineState.current])
 
-  const seekRightBy = (time: number) => {
-    if (!time || !timelineState.current) return
-    const next = timelineState.current.getTime() + time
-    timelineState.current.setTime(next > totalDuration ? totalDuration : next)
-  }
+  const seekRightBy = useCallback(
+    (time: number) => {
+      if (!time || !timelineState.current) return
+      const next = timelineState.current.getTime() + time
+      timelineState.current.setTime(next > totalDuration ? totalDuration : next)
+    },
+    [timelineState.current, totalDuration],
+  )
 
-  const seekLeftBy = (time: number) => {
-    if (!time || !timelineState.current) return
-    const next = timelineState.current.getTime() - time
-    timelineState.current.setTime(next < 0 ? 0 : next)
-  }
+  const seekLeftBy = useCallback(
+    (time: number) => {
+      if (!time || !timelineState.current) return
+      const next = timelineState.current.getTime() - time
+      timelineState.current.setTime(next < 0 ? 0 : next)
+    },
+    [timelineState.current],
+  )
 
-  const setTime = (time: number) => {
-    if (!timelineState.current) return
-    timelineState.current.setTime(time)
-  }
+  const setTime = useCallback(
+    (time: number) => {
+      if (!timelineState.current) return
+      timelineState.current.setTime(time)
+    },
+    [timelineState.current],
+  )
 
-  const refreshTimeline = () => {
+  const refreshTimeline = useCallback(() => {
     if (!timelineState.current) return
     timelineState.current.reRender()
-  }
+  }, [timelineState.current])
 
   return {
     playOrPause,

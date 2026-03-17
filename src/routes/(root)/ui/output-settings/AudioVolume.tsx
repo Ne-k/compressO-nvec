@@ -120,7 +120,7 @@ function AudioVolume({ videoIndex }: AudioVolumeProps) {
         ]}
         classNames={{
           mark: 'text-[11px] mt-3',
-          label: 'text-sm text-gray-600 dark:text-gray-400',
+          label: 'text-sm text-gray-600 dark:text-gray-400 font-bold',
         }}
         getValue={(value) => {
           const val = Array.isArray(value) ? value?.[0] : +value

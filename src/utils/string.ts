@@ -24,7 +24,13 @@ export function convertDurationToMilliseconds(duration: string) {
  * @param {number} totalSeconds: Time duration in seconds
  * @returns {string}: Formatted duration in HH:MM::SS.mm
  */
-export function formatDuration(totalSeconds: number): string {
+export function formatDuration(
+  totalSeconds: number,
+  options: { enableHoursWhenZero?: boolean; disableMilliseconds?: boolean } = {
+    enableHoursWhenZero: false,
+    disableMilliseconds: false,
+  },
+): string {
   const hours = Math.floor(totalSeconds / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)
   const seconds = Math.floor(totalSeconds % 60)
@@ -33,6 +39,9 @@ export function formatDuration(totalSeconds: number): string {
   )
 
   const pad = (n: number, size = 2) => n.toString().padStart(size, '0')
-
-  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}.${pad(milliseconds)}`
+  const hoursPart =
+    (options?.enableHoursWhenZero && hours === 0) || hours !== 0
+      ? `${pad(hours)}:`
+      : ''
+  return `${hoursPart}${pad(minutes)}:${pad(seconds)}${!options?.disableMilliseconds ? `.${pad(milliseconds)}` : ''}`
 }

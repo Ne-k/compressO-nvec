@@ -20,7 +20,7 @@ import {
   useState,
 } from 'react'
 
-import { BoundaryRowActionRender } from '@/components/Timeline'
+import { BoundaryRowActionRender, ScaleRender } from '@/components/Timeline'
 import Button from '../../components/Button'
 import Code from '../../components/Code'
 import Icon from '../../components/Icon'
@@ -152,7 +152,7 @@ export const TrimRowActionRenderer: FC<{
       <div className="absolute inset-0 border-2 border-white/30 opacity-0 group-hover:opacity-100 rounded-lg pointer-events-none" />
       {isSelected ? (
         <>
-          <div className="absolute inset-0 bg-white/20 rounded-lg pointer-events-none border-2 border-black1 dark:border-white1" />
+          <div className="absolute inset-0 bg-black/20 dark:bg-white/20 rounded-lg pointer-events-none border-2 border-black1 dark:border-white1" />
         </>
       ) : null}
     </div>
@@ -406,6 +406,7 @@ const VideoTrimmerTimeline = forwardRef(
               )
             }
           }}
+          getScaleRender={(scale) => <ScaleRender scale={scale} />}
           {...props}
           onDoubleClickRow={(_, { row, time }) =>
             handleInsertNewAction(row, time)

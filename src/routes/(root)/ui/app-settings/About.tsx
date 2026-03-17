@@ -8,28 +8,26 @@ import TauriLink from '@/tauri/components/Link'
 function About() {
   return (
     <section className="px-4 py-10 w-full">
-      <section className="mb-6">
+      <section className="mb-2">
         <Title title="About" iconProps={{ name: 'info' }} />
       </section>
       <section>
-        <div className="z-10 flex justify-center items-center">
-          <h2 className="text-3xl mr-2 font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            compressO
-          </h2>
+        <div className="z-10 flex justify-center items-center flex-col">
           <Image
             disableAnimation
             src="/logo.png"
             alt="logo"
-            width={50}
-            height={50}
+            width={80}
+            height={80}
           />
+          <h2 className="block text-3xl font-bold text-primary">CompressO</h2>
         </div>
         <p className="text-center italic text-gray-600 dark:text-gray-400 text-sm my-1">
-          Compress any video to a tiny size.
+          Compress any video into a tiny size.
         </p>
       </section>
       <section className="my-8">
-        <p className="text-center text-gray-600 dark:text-gray-400 text-sm my-1">
+        <p className="text-center text-gray-600 dark:text-gray-400 text-sm my-1 ">
           Powered by{' '}
           <TauriLink href="https://ffmpeg.org/" className="text-lg">
             FFmpeg
@@ -44,9 +42,7 @@ function About() {
         <p className="text-center text-gray-600 dark:text-gray-400 text-sm my-1">
           Made with <Icon className="inline text-primary" name="lowResHeart" />{' '}
           in public by{' '}
-          <TauriLink href="https://www.threads.net/@codeforreal">
-            Code For Real⚡
-          </TauriLink>
+          <TauriLink href="https://codeforreal.com">Code For Real⚡</TauriLink>
         </p>
       </section>
       <section>

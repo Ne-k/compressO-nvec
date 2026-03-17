@@ -63,7 +63,7 @@ function VideoExtension({ videoIndex }: VideoExtensionProps) {
       selectionMode="single"
       isDisabled={shouldDisableInput}
       classNames={{
-        label: '!text-gray-600 dark:!text-gray-400 text-sm',
+        label: '!text-gray-600 dark:!text-gray-400 text-sm font-bold',
       }}
     >
       {videoExtensions?.map((ext) => (

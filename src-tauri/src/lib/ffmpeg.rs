@@ -1054,6 +1054,8 @@ impl FFMPEG {
             timestamp_value,
             "-i",
             video_path,
+            "-vf",
+            "scale=trunc(iw*sar/2)*2:ih,setsar=1",
             "-frames:v",
             "1",
             "-an",

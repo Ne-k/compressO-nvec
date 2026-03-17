@@ -6,20 +6,6 @@ import {
   VideoThumbnail,
 } from '@/types/compression'
 
-export function extractSubtitle(
-  videoPath: string,
-  streamIndex: number,
-  outputPath: string,
-  format?: 'srt' | 'vtt',
-): Promise<string> {
-  return core.invoke('extract_subtitle', {
-    videoPath,
-    streamIndex,
-    outputPath,
-    format: format || 'srt',
-  })
-}
-
 export function compressVideos(
   batchId: string,
   videos: VideoCompressionConfig[],
@@ -35,4 +21,18 @@ export function generateVideoThumbnail(
   timestamp?: string,
 ): Promise<VideoThumbnail> {
   return core.invoke('generate_video_thumbnail', { videoPath, timestamp })
+}
+
+export function extractSubtitle(
+  videoPath: string,
+  streamIndex: number,
+  outputPath: string,
+  format?: 'srt' | 'vtt',
+): Promise<string> {
+  return core.invoke('extract_subtitle', {
+    videoPath,
+    streamIndex,
+    outputPath,
+    format: format || 'srt',
+  })
 }

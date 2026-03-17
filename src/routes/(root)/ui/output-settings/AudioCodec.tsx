@@ -94,7 +94,6 @@ function AudioCodec({ videoIndex }: AudioCodecProps) {
 
   const currentExtension = convertToExtension ?? 'mp4'
 
-  // Reset codec if it's not compatible with the current extension
   useEffect(() => {
     if (shouldEnableCustomAudioCodec && customAudioCodec) {
       const currentCodec = AUDIO_CODECS.find(
@@ -175,7 +174,7 @@ function AudioCodec({ videoIndex }: AudioCodecProps) {
         onValueChange={handleSwitchToggle}
         isDisabled={shouldDisableInput}
       >
-        <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full">
+        <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full font-bold">
           Codec
         </p>
       </Switch>

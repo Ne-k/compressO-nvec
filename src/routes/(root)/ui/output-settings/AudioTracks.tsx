@@ -145,7 +145,7 @@ function AudioTracks({ videoIndex }: AudioTracksProps) {
         onValueChange={handleSwitchToggle}
         isDisabled={shouldDisableInput || audioStreams.length === 0}
       >
-        <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full">
+        <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full font-bold">
           Tracks
         </p>
       </Switch>

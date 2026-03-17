@@ -1,15 +1,15 @@
 # AUTO-GENERATED FILE. DO NOT EDIT!
 cask "compresso" do
-  version "2.0.0"
+  version "2.1.1"
 
   on_arm do
     url "https://github.com/codeforreal1/compressO/releases/download/#{version}/CompressO_#{version}_aarch64.dmg"
-    sha256 "1d3c700a16963534b9c1b5bfaa08ee2fb5729720dcea2772ba23210d4cbd445e"
+    sha256 "8e87b4e8bcf783662f7f501fbc1bd13c74d8e14e4fd7005a8bbeea0fc4c2ceeb"
   end
 
   on_intel do
     url "https://github.com/codeforreal1/compressO/releases/download/#{version}/CompressO_#{version}_x64.dmg"
-    sha256 "306dd6dce3b62c4736558acb5c2e4e3b901c6c39f78e7f08080cee8f85f441b1"
+    sha256 "b6132991f9fd17241c38ed71fb71444e1278d2890f827c356a24376d73adfbb6"
   end
 
   name "CompressO"

@@ -326,7 +326,7 @@ function OutputSettings({ videoIndex }: OutputSettingsProps) {
             </div>
           ) : null}
           {tab === 'audio' ? (
-            <>
+            <div className="relative">
               <div className="mb-4">
                 <AudioVolume videoIndex={videoIndex} />
                 <Divider className="mt-8" />
@@ -347,9 +347,13 @@ function OutputSettings({ videoIndex }: OutputSettingsProps) {
                 <AudioTracks videoIndex={videoIndex} />
               </>
               {hasNoAudio ? (
-                <p className="text-xs text-center mt-1">No audio found</p>
+                <div className="flex justify-center items-center absolute left-0 top-0 w-full h-full bg-white1/50 dark:bg-black1/50">
+                  <p className="text-xs text-center mt-1 text-zinc-600 dark:text-zinc-400">
+                    No audio found
+                  </p>
+                </div>
               ) : null}
-            </>
+            </div>
           ) : null}
           {tab === 'others' ? (
             <>

@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import cloneDeep from 'lodash/cloneDeep'
-import React, { useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 import { useSnapshot } from 'valtio'
 
 import Card from '@/components/Card'
@@ -36,66 +36,55 @@ function Metadata({ videoIndex }: MetadataProps) {
   const { shouldPreserveMetadata, metadataConfig } =
     config ?? commonConfigForBatchCompression ?? {}
 
-  const debounceRef = useRef<NodeJS.Timeout>()
-  const metadataRef = useRef<VideoMetadataConfig | null | undefined>(
-    metadataConfig as any,
-  )
-
-  React.useEffect(() => {
-    ;(metadataRef.current as any) = metadataConfig
-  }, [metadataConfig])
-
   const updateMetadataField = useCallback(
-    (field: keyof VideoMetadataConfig, value: string | null | undefined) => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current)
-      }
-      debounceRef.current = setTimeout(() => {
-        if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
-          if (!appProxy.state.videos[videoIndex]?.config?.metadataConfig) {
-            appProxy.state.videos[videoIndex].config.metadataConfig = cloneDeep(
-              videoMetadataConfigInitialState,
-            )
+    (
+      field: keyof VideoMetadataConfig,
+      value: string | boolean | null | undefined,
+    ) => {
+      if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
+        if (!appProxy.state.videos[videoIndex]?.config?.metadataConfig) {
+          appProxy.state.videos[videoIndex].config.metadataConfig = cloneDeep(
+            videoMetadataConfigInitialState,
+          )
+        }
+        ;(appProxy.state.videos[videoIndex].config.metadataConfig![
+          field
+        ] as any) = value
+
+        if (
+          field === 'creationTimeRaw' &&
+          appProxy.state.videos[videoIndex]?.config?.metadataConfig
+        ) {
+          appProxy.state.videos[videoIndex].config.metadataConfig![
+            'creationTime'
+          ] = (value as any)?.toDate?.('')?.toISOString()
+        }
+
+        appProxy.state.videos[videoIndex].isConfigDirty = true
+      } else {
+        if (appProxy.state.videos.length > 1) {
+          if (
+            !appProxy.state?.commonConfigForBatchCompression?.metadataConfig
+          ) {
+            appProxy.state.commonConfigForBatchCompression.metadataConfig =
+              cloneDeep(videoMetadataConfigInitialState)
           }
-          ;(appProxy.state.videos[videoIndex].config.metadataConfig![field] as
-            | string
-            | null
-            | undefined) = value
+          ;(appProxy.state.commonConfigForBatchCompression.metadataConfig![
+            field
+          ] as any) = value
 
           if (
             field === 'creationTimeRaw' &&
-            appProxy.state.videos[videoIndex]?.config?.metadataConfig
+            appProxy.state.commonConfigForBatchCompression?.metadataConfig
           ) {
-            appProxy.state.videos[videoIndex].config.metadataConfig![
+            appProxy.state.commonConfigForBatchCompression.metadataConfig![
               'creationTime'
-            ] = (value as any)?.toDate('')?.toISOString()
+            ] = (value as any)?.toDate?.('')?.toISOString()
           }
 
-          appProxy.state.videos[videoIndex].isConfigDirty = true
-        } else {
-          if (appProxy.state.videos.length > 1) {
-            if (
-              !appProxy.state?.commonConfigForBatchCompression?.metadataConfig
-            ) {
-              appProxy.state.commonConfigForBatchCompression.metadataConfig =
-                cloneDeep(videoMetadataConfigInitialState)
-            }
-            ;(appProxy.state.commonConfigForBatchCompression.metadataConfig![
-              field
-            ] as string | null | undefined) = value
-            normalizeBatchVideosConfig()
-
-            if (
-              field === 'creationTimeRaw' &&
-              appProxy.state.commonConfigForBatchCompression?.metadataConfig
-            ) {
-              appProxy.state.commonConfigForBatchCompression.metadataConfig![
-                'creationTime'
-              ] = (value as any)?.toDate('')?.toISOString()
-            }
-          }
+          normalizeBatchVideosConfig()
         }
-      }, 300)
+      }
     },
     [videoIndex],
   )
@@ -143,7 +132,7 @@ function Metadata({ videoIndex }: MetadataProps) {
         isDisabled={shouldDisableInput}
       >
         <div className="flex justify-center items-center">
-          <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm">
+          <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm font-bold">
             Preserve Metadata
           </span>
         </div>
@@ -165,7 +154,7 @@ function Metadata({ videoIndex }: MetadataProps) {
                   type="text"
                   label="Title"
                   placeholder="Enter video title"
-                  defaultValue={metadataConfig?.title ?? ''}
+                  value={metadataConfig?.title ?? ''}
                   isDisabled={shouldDisableInput}
                   onValueChange={(value) => updateMetadataField('title', value)}
                   classNames={{ mainWrapper: 'my-3' }}
@@ -177,7 +166,7 @@ function Metadata({ videoIndex }: MetadataProps) {
                   type="text"
                   label="Artist"
                   placeholder="Enter artist name"
-                  defaultValue={metadataConfig?.artist ?? ''}
+                  value={metadataConfig?.artist ?? ''}
                   isDisabled={shouldDisableInput}
                   onValueChange={(value) =>
                     updateMetadataField('artist', value)
@@ -191,7 +180,7 @@ function Metadata({ videoIndex }: MetadataProps) {
                   type="text"
                   label="Album"
                   placeholder="Enter album name"
-                  defaultValue={metadataConfig?.album ?? ''}
+                  value={metadataConfig?.album ?? ''}
                   isDisabled={shouldDisableInput}
                   onValueChange={(value) => updateMetadataField('album', value)}
                   classNames={{ mainWrapper: 'my-3' }}
@@ -203,7 +192,7 @@ function Metadata({ videoIndex }: MetadataProps) {
                   type="text"
                   label="Genre"
                   placeholder="Enter genre"
-                  defaultValue={metadataConfig?.genre ?? ''}
+                  value={metadataConfig?.genre ?? ''}
                   isDisabled={shouldDisableInput}
                   classNames={{ mainWrapper: 'my-3' }}
                   onValueChange={(value) => updateMetadataField('genre', value)}
@@ -215,7 +204,7 @@ function Metadata({ videoIndex }: MetadataProps) {
                   type="text"
                   label="Year/Date"
                   placeholder="Enter year or date"
-                  defaultValue={metadataConfig?.year ?? ''}
+                  value={metadataConfig?.year ?? ''}
                   isDisabled={shouldDisableInput}
                   classNames={{ mainWrapper: 'my-3' }}
                   onValueChange={(value) => updateMetadataField('year', value)}
@@ -227,7 +216,7 @@ function Metadata({ videoIndex }: MetadataProps) {
                   type="text"
                   label="Description"
                   placeholder="Enter description"
-                  defaultValue={metadataConfig?.description ?? ''}
+                  value={metadataConfig?.description ?? ''}
                   isDisabled={shouldDisableInput}
                   onValueChange={(value) =>
                     updateMetadataField('description', value)
@@ -241,7 +230,7 @@ function Metadata({ videoIndex }: MetadataProps) {
                   type="text"
                   label="Synopsis"
                   placeholder="Enter synopsis"
-                  defaultValue={metadataConfig?.synopsis ?? ''}
+                  value={metadataConfig?.synopsis ?? ''}
                   isDisabled={shouldDisableInput}
                   onValueChange={(value) =>
                     updateMetadataField('synopsis', value)
@@ -255,7 +244,7 @@ function Metadata({ videoIndex }: MetadataProps) {
                   type="text"
                   label="Comment"
                   placeholder="Enter comment"
-                  defaultValue={metadataConfig?.comment ?? ''}
+                  value={metadataConfig?.comment ?? ''}
                   isDisabled={shouldDisableInput}
                   onValueChange={(value) =>
                     updateMetadataField('comment', value)
@@ -269,7 +258,7 @@ function Metadata({ videoIndex }: MetadataProps) {
                   type="text"
                   label="Copyright"
                   placeholder="Enter copyright information"
-                  defaultValue={metadataConfig?.copyright ?? ''}
+                  value={metadataConfig?.copyright ?? ''}
                   isDisabled={shouldDisableInput}
                   onValueChange={(value) =>
                     updateMetadataField('copyright', value)
@@ -288,7 +277,7 @@ function Metadata({ videoIndex }: MetadataProps) {
                     onValueChange={(isSelected) => {
                       updateMetadataField(
                         'shouldEnableCreationTime',
-                        isSelected as any,
+                        isSelected,
                       )
                     }}
                     className="flex justify-center items-center"
@@ -316,7 +305,6 @@ function Metadata({ videoIndex }: MetadataProps) {
                     onChange={(value) => {
                       updateMetadataField('creationTimeRaw', value as any)
                     }}
-                    defaultValue={metadataConfig?.creationTimeRaw as any}
                     value={metadataConfig?.creationTimeRaw as any}
                     className="mt-2"
                   />
